@@ -1,0 +1,593 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --button-outline: rgba(0, 0, 0, .10);
+    --badge-outline: rgba(0, 0, 0, .05);
+
+    --opaque-button-border-intensity: -8;
+
+    --elevate-1: rgba(0, 0, 0, .03);
+    --elevate-2: rgba(0, 0, 0, .08);
+
+    --background: 220 20% 7%;
+    --foreground: 210 20% 92%;
+    --card: 220 18% 11%;
+    --card-foreground: 210 20% 92%;
+    --card-border: 220 14% 15%;
+    --popover: 220 18% 11%;
+    --popover-foreground: 210 20% 92%;
+    --popover-border: 220 14% 16%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 15% 80%;
+    --muted: 220 14% 18%;
+    --muted-foreground: 215 12% 50%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 18%;
+    --input: 220 16% 16%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+
+    --sidebar: 220 18% 9%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-border: 220 14% 14%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Custom Propswipe tokens */
+    --teal: 217 91% 60%;
+    --teal-muted: 217 60% 40%;
+    --cyan: 210 80% 55%;
+    --warm-gray: 220 10% 40%;
+    --glass: 220 16% 12%;
+    --glass-border: 220 14% 20%;
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(210 80% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(217 91% 55%), hsl(210 70% 50%));
+    --gradient-bg: linear-gradient(160deg, hsl(220 25% 5%), hsl(220 20% 9%), hsl(217 18% 8%));
+    --gradient-cta: linear-gradient(135deg, hsl(217 91% 60%), hsl(210 80% 55%));
+    --shadow-neon: 0 0 30px hsl(217 91% 60% / 0.2);
+    --shadow-glow: 0 0 60px hsl(217 91% 60% / 0.1), 0 0 120px hsl(210 80% 55% / 0.05);
+
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-sans: Inter, sans-serif;
+    --font-serif: Georgia, serif;
+    --font-mono: JetBrains Mono, monospace;
+
+    --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.20);
+    --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.24);
+    --shadow-sm: 0px 2px 4px -1px hsl(0 0% 0% / 0.22), 0px 1px 2px -1px hsl(0 0% 0% / 0.24);
+    --shadow: 0px 4px 6px -2px hsl(0 0% 0% / 0.24), 0px 2px 4px -2px hsl(0 0% 0% / 0.22);
+    --shadow-md: 0px 8px 12px -4px hsl(0 0% 0% / 0.28), 0px 4px 8px -4px hsl(0 0% 0% / 0.24);
+    --shadow-lg: 0px 16px 24px -8px hsl(0 0% 0% / 0.32), 0px 8px 16px -8px hsl(0 0% 0% / 0.28);
+    --shadow-xl: 0px 24px 32px -12px hsl(0 0% 0% / 0.36), 0px 12px 24px -12px hsl(0 0% 0% / 0.32);
+    --shadow-2xl: 0px 32px 48px -16px hsl(0 0% 0% / 0.40);
+
+    --tracking-normal: 0em;
+    --spacing: 0.25rem;
+
+    /* Automatically computed borders */
+    --sidebar-primary-border: hsl(var(--sidebar-primary));
+    --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    --sidebar-accent-border: hsl(var(--sidebar-accent));
+    --sidebar-accent-border: hsl(from hsl(var(--sidebar-accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    --primary-border: hsl(var(--primary));
+    --primary-border: hsl(from hsl(var(--primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    --secondary-border: hsl(var(--secondary));
+    --secondary-border: hsl(from hsl(var(--secondary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    --muted-border: hsl(var(--muted));
+    --muted-border: hsl(from hsl(var(--muted)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    --accent-border: hsl(var(--accent));
+    --accent-border: hsl(from hsl(var(--accent)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    --destructive-border: hsl(var(--destructive));
+    --destructive-border: hsl(from hsl(var(--destructive)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
+
+    /* Let the browser know we're using a dark color scheme by default */
+    color-scheme: dark;
+  }
+
+  /* ─── Explicit Dark Theme ────────────────────────────────────────────────── */
+  .dark,
+  [data-theme="dark"] {
+    --button-outline: rgba(0, 0, 0, .10);
+    --badge-outline: rgba(0, 0, 0, .05);
+
+    --opaque-button-border-intensity: -8;
+
+    --elevate-1: rgba(0, 0, 0, .03);
+    --elevate-2: rgba(0, 0, 0, .08);
+
+    --background: 220 20% 7%;
+    --foreground: 210 20% 92%;
+    --card: 220 18% 11%;
+    --card-foreground: 210 20% 92%;
+    --card-border: 220 14% 15%;
+    --popover: 220 18% 11%;
+    --popover-foreground: 210 20% 92%;
+    --popover-border: 220 14% 16%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 16% 16%;
+    --secondary-foreground: 210 15% 80%;
+    --muted: 220 14% 18%;
+    --muted-foreground: 215 12% 50%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 20% 92%;
+    --destructive: 0 72% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 14% 18%;
+    --input: 220 16% 16%;
+    --ring: 217 91% 60%;
+
+    --sidebar: 220 18% 9%;
+    --sidebar-foreground: 210 20% 92%;
+    --sidebar-border: 220 14% 14%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 16% 14%;
+    --sidebar-accent-foreground: 210 20% 92%;
+    --sidebar-ring: 217 91% 60%;
+
+    /* Custom Propswipe tokens - dark */
+    --teal: 217 91% 60%;
+    --teal-muted: 217 60% 40%;
+    --cyan: 210 80% 55%;
+    --warm-gray: 220 10% 40%;
+    --glass: 220 16% 12%;
+    --glass-border: 220 14% 20%;
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(210 80% 55%));
+    --gradient-accent: linear-gradient(135deg, hsl(217 91% 55%), hsl(210 70% 50%));
+    --gradient-bg: linear-gradient(160deg, hsl(220 25% 5%), hsl(220 20% 9%), hsl(217 18% 8%));
+    --gradient-cta: linear-gradient(135deg, hsl(217 91% 60%), hsl(210 80% 55%));
+    --shadow-neon: 0 0 30px hsl(217 91% 60% / 0.2);
+    --shadow-glow: 0 0 60px hsl(217 91% 60% / 0.1), 0 0 120px hsl(210 80% 55% / 0.05);
+
+    /* Keep browser UI in dark mode for this theme */
+    color-scheme: dark;
+  }
+
+  /* ─── Light Theme ─────────────────────────────────────────────────────────── */
+  .light,
+  [data-theme="light"] {
+    --button-outline: rgba(0, 0, 0, .12);
+    --badge-outline: rgba(0, 0, 0, .06);
+
+    --opaque-button-border-intensity: -10;
+
+    --elevate-1: rgba(0, 0, 0, .04);
+    --elevate-2: rgba(0, 0, 0, .09);
+
+    /* ── Backgrounds & surfaces ── */
+    --background: 220 20% 96%;
+    --foreground: 217 65% 22%;
+    /* deep bluish tone, inspired by blue-500 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 217 65% 22%;
+    --card-border: 220 14% 88%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 217 65% 22%;
+    --popover-border: 220 14% 84%;
+
+    /* ── Primary / brand / links ── */
+    --primary: 217 91% 60%;
+    /* approx Tailwind blue-500 for buttons/links */
+    --primary-foreground: 0 0% 100%;
+    /* white text on primary buttons */
+
+    --accent: 217 91% 60%;
+    --accent-foreground: 217 65% 22%;
+    /* blue text on subtle accent backgrounds */
+
+    /* ── Secondary / ghost buttons ── */
+    --secondary: 220 16% 90%;
+    --secondary-foreground: 217 60% 30%;
+    /* dark bluish text on light bg */
+
+    /* ── Muted areas ── */
+    --muted: 220 14% 92%;
+    --muted-foreground: 217 35% 40%;
+    /* medium-dark blue-gray — clear but not dominant */
+
+    /* ── Utility ── */
+    --border: 220 14% 86%;
+    --input: 220 16% 91%;
+    --ring: 174 72% 50%;
+
+    /* ── Sidebar (shares primary/link colors with dark) ── */
+    --sidebar: 220 18% 93%;
+    --sidebar-foreground: 217 65% 22%;
+    --sidebar-border: 220 14% 84%;
+    /* sidebar-primary / sidebar-primary-foreground inherit from :root */
+    --sidebar-accent: 220 16% 88%;
+    --sidebar-accent-foreground: 217 35% 40%;
+    --sidebar-ring: 174 65% 32%;
+
+    /* ── Custom Propswipe tokens ── */
+    /* teal / cyan stay consistent across light & dark */
+    --warm-gray: 220 10% 52%;
+    --glass: 0 0% 100%;
+    --glass-border: 220 14% 82%;
+
+    /* gradients reuse the shared teal/cyan tokens */
+    --gradient-bg: linear-gradient(160deg, hsl(220 25% 96%), hsl(220 20% 93%), hsl(200 18% 94%));
+    --gradient-cta: linear-gradient(135deg, hsl(174 65% 32%), hsl(210 80% 45%));
+
+    --shadow-neon: 0 0 30px hsl(174 65% 32% / 0.15);
+    --shadow-glow: 0 0 60px hsl(174 65% 32% / 0.08), 0 0 120px hsl(210 80% 45% / 0.04);
+
+    --shadow-2xs: 0px 1px 2px 0px hsl(220 20% 7% / 0.06);
+    --shadow-xs: 0px 1px 3px 0px hsl(220 20% 7% / 0.08);
+    --shadow-sm: 0px 2px 4px -1px hsl(220 20% 7% / 0.07), 0px 1px 2px -1px hsl(220 20% 7% / 0.06);
+    --shadow: 0px 4px 6px -2px hsl(220 20% 7% / 0.08), 0px 2px 4px -2px hsl(220 20% 7% / 0.07);
+    --shadow-md: 0px 8px 12px -4px hsl(220 20% 7% / 0.10), 0px 4px 8px -4px hsl(220 20% 7% / 0.08);
+    --shadow-lg: 0px 16px 24px -8px hsl(220 20% 7% / 0.12), 0px 8px 16px -8px hsl(220 20% 7% / 0.10);
+    --shadow-xl: 0px 24px 32px -12px hsl(220 20% 7% / 0.14), 0px 12px 24px -12px hsl(220 20% 7% / 0.12);
+    --shadow-2xl: 0px 32px 48px -16px hsl(220 20% 7% / 0.16);
+
+    /* Tell the browser to render scrollbars, form controls, etc. in light mode */
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body, var(--font-sans));
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display, var(--font-sans));
+  }
+}
+
+@layer utilities {
+
+  .bg-hero-gradient {
+    background: linear-gradient(to bottom right,
+        hsl(var(--teal) / 0.05),
+        hsl(var(--background)),
+        hsl(var(--cyan) / 0.05));
+  }
+
+
+  /* Hide ugly search cancel button in Chrome */
+  input[type="search"]::-webkit-search-cancel-button {
+    @apply hidden;
+  }
+
+  /* Placeholder styling for contentEditable div */
+  [contenteditable][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+
+  /* Elevate system */
+  .toggle-elevate::before,
+  .toggle-elevate-2::before {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: -1;
+  }
+
+  .toggle-elevate.toggle-elevated::before {
+    background-color: var(--elevate-2);
+  }
+
+  .border.toggle-elevate::before {
+    inset: -1px;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate),
+  .active-elevate:not(.no-default-active-elevate),
+  .hover-elevate-2:not(.no-default-hover-elevate),
+  .active-elevate-2:not(.no-default-active-elevate) {
+    position: relative;
+    z-index: 0;
+  }
+
+  .hover-elevate:not(.no-default-hover-elevate)::after,
+  .active-elevate:not(.no-default-active-elevate)::after,
+  .hover-elevate-2:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:not(.no-default-active-elevate)::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    z-index: 999;
+  }
+
+  .hover-elevate:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-1);
+  }
+
+  .hover-elevate-2:hover:not(.no-default-hover-elevate)::after,
+  .active-elevate-2:active:not(.no-default-active-elevate)::after {
+    background-color: var(--elevate-2);
+  }
+
+  .border.hover-elevate:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate:not(.no-active-interaction-elevate)::after,
+  .border.hover-elevate-2:not(.no-hover-interaction-elevate)::after,
+  .border.active-elevate-2:not(.no-active-interaction-elevate)::after {
+    inset: -1px;
+  }
+
+  /* Shorts / video animations */
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-heart-bounce {
+    animation: heart-bounce 0.6s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out;
+  }
+
+  .shorts-container {
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+  }
+
+  .video-progress {
+    transition: width 0.1s linear;
+  }
+
+  .swipe-left-feedback {
+    animation: swipe-left-feedback 0.3s ease-out;
+  }
+
+  .swipe-right-feedback {
+    animation: swipe-right-feedback 0.3s ease-out;
+  }
+
+  .play-button-pulse {
+    animation: play-button-pulse 2s infinite;
+  }
+
+  /* Glass & gradient utilities */
+  .glass-card {
+    background: hsl(var(--glass) / 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--glass-border) / 0.5);
+  }
+
+  .light .glass-card,
+  [data-theme="light"] .glass-card {
+    background: hsl(var(--glass) / 0.85);
+    border-color: hsl(var(--glass-border) / 0.75);
+    box-shadow: 0 4px 24px hsl(220 20% 7% / 0.06);
+  }
+
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-cta {
+    background: var(--gradient-cta);
+    background-size: 200% 200%;
+    animation: gradient-shift 4s ease infinite;
+  }
+
+  .animated-bg {
+    background: var(--gradient-bg);
+    background-size: 400% 400%;
+    animation: gradient-shift 15s ease infinite;
+    color: hsl(0 0% 95%);
+  }
+
+  .animated-bg .text-foreground {
+    color: hsl(0 0% 95%);
+  }
+
+  .animated-bg .text-muted-foreground {
+    color: hsl(0 0% 65%);
+  }
+
+  .light .animated-bg,
+  [data-theme="light"] .animated-bg {
+    color: hsl(220 25% 10%);
+  }
+
+  .light .animated-bg .text-foreground,
+  [data-theme="light"] .animated-bg .text-foreground {
+    color: hsl(220 25% 10%);
+  }
+
+  .light .animated-bg .text-muted-foreground,
+  [data-theme="light"] .animated-bg .text-muted-foreground {
+    color: hsl(220 15% 40%);
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* Keyframe animations */
+@keyframes heart-bounce {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes swipe-left-feedback {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateX(-20px) rotate(-5deg);
+  }
+
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+@keyframes swipe-right-feedback {
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateX(20px) rotate(5deg);
+  }
+
+  100% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+@keyframes play-button-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes gradient-shift {
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}
