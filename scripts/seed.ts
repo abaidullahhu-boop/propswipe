@@ -5,7 +5,7 @@
  */
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { neon } from "@neondatabase/serverless";
+import pg from "pg";
 import { storage } from "../server/storage.js";
 import type { InsertProperty } from "../shared/schema.js";
 import { randomUUID } from "crypto";
@@ -121,7 +121,15 @@ async function seedPlotFinderData() {
     return;
   }
 
-  const sqlExec = neon(DATABASE_URL);
+  const { Pool } = pg;
+  const pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl:
+      DATABASE_URL.includes("localhost") || DATABASE_URL.includes("127.0.0.1")
+        ? undefined
+        : { rejectUnauthorized: false },
+  });
+  const sqlExec = (queryText: string, params: unknown[] = []) => pool.query(queryText, params);
 
   await sqlExec(`
     CREATE TABLE IF NOT EXISTS societies (
@@ -158,13 +166,21 @@ async function seedPlotFinderData() {
   `);
   await sqlExec(`ALTER TABLE block_plots ALTER COLUMN id SET DEFAULT gen_random_uuid()`);
 
-  const existingSociety = await sqlExec`SELECT id FROM societies WHERE lower(name)=lower('Bismillah Housing Scheme') LIMIT 1`;
+  const existingSociety = await sqlExec(
+    `SELECT id FROM societies WHERE lower(name)=lower($1) LIMIT 1`,
+    ["Bismillah Housing Scheme"]
+  );
   let societyId: string;
-  if (existingSociety.length > 0) {
-    societyId = existingSociety[0].id as string;
+  if (existingSociety.rows.length > 0) {
+    societyId = existingSociety.rows[0].id as string;
   } else {
     societyId = randomUUID();
-    await sqlExec`INSERT INTO societies (id, name, city, state) VALUES (${societyId}, 'Bismillah Housing Scheme', 'Lahore', 'Punjab')`;
+    await sqlExec(`INSERT INTO societies (id, name, city, state) VALUES ($1, $2, $3, $4)`, [
+      societyId,
+      "Bismillah Housing Scheme",
+      "Lahore",
+      "Punjab",
+    ]);
   }
 
   const blockRows = [
@@ -251,23 +267,39 @@ async function seedPlotFinderData() {
   ];
 
   for (const block of blockRows) {
-    const existingBlock = await sqlExec`SELECT id FROM society_blocks WHERE society_id=${societyId} AND lower(name)=lower(${block.name}) LIMIT 1`;
+    const existingBlock = await sqlExec(
+      `SELECT id FROM society_blocks WHERE society_id=$1 AND lower(name)=lower($2) LIMIT 1`,
+      [societyId, block.name]
+    );
     let blockId: string;
-    if (existingBlock.length > 0) {
-      blockId = existingBlock[0].id as string;
-      await sqlExec`UPDATE society_blocks SET image_path=${block.imagePath}, width_px=${block.widthPx}, height_px=${block.heightPx} WHERE id=${blockId}`;
+    if (existingBlock.rows.length > 0) {
+      blockId = existingBlock.rows[0].id as string;
+      await sqlExec(
+        `UPDATE society_blocks SET image_path=$1, width_px=$2, height_px=$3 WHERE id=$4`,
+        [block.imagePath, block.widthPx, block.heightPx, blockId]
+      );
     } else {
       blockId = randomUUID();
-      await sqlExec`INSERT INTO society_blocks (id, society_id, name, image_path, width_px, height_px) VALUES (${blockId}, ${societyId}, ${block.name}, ${block.imagePath}, ${block.widthPx}, ${block.heightPx})`;
+      await sqlExec(
+        `INSERT INTO society_blocks (id, society_id, name, image_path, width_px, height_px) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [blockId, societyId, block.name, block.imagePath, block.widthPx, block.heightPx]
+      );
     }
 
     for (const plot of block.plots) {
-      const existingPlot = await sqlExec`SELECT id FROM block_plots WHERE block_id=${blockId} AND plot_number=${plot.plotNumber} LIMIT 1`;
-      if (existingPlot.length > 0) continue;
-      await sqlExec`INSERT INTO block_plots (id, block_id, plot_number, x, y, size, status) VALUES (${randomUUID()}, ${blockId}, ${plot.plotNumber}, ${plot.x}, ${plot.y}, ${plot.size}, ${plot.status})`;
+      const existingPlot = await sqlExec(
+        `SELECT id FROM block_plots WHERE block_id=$1 AND plot_number=$2 LIMIT 1`,
+        [blockId, plot.plotNumber]
+      );
+      if (existingPlot.rows.length > 0) continue;
+      await sqlExec(
+        `INSERT INTO block_plots (id, block_id, plot_number, x, y, size, status) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [randomUUID(), blockId, plot.plotNumber, plot.x, plot.y, plot.size, plot.status]
+      );
     }
   }
 
+  await pool.end();
   console.log("[seed] Plot finder data verified/inserted.");
 }
 
