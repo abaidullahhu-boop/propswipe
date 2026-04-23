@@ -23,12 +23,12 @@ jobs:
             set -e
             cd /var/www/propswipe
             git pull origin production
-            npm install --omit=dev
+            npm ci
             npm run build
             pm2 restart propswipe --update-env
 
       - name: Send failure email
-        if: failure()
+        if: ${{ failure() && secrets.MAIL_USERNAME != '' && secrets.MAIL_PASSWORD != '' }}
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
