@@ -252,18 +252,18 @@ export function PropertyDrawer({
       <div className="fixed inset-0" onClick={onClose} />
       
       <div
-        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-white transform transition-transform duration-300 ease-in-out"
+        className="fixed right-0 top-0 h-full w-full max-w-2xl bg-slate-950 text-slate-100 transform transition-transform duration-300 ease-in-out"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-gray-900">Property Details</h2>
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <h2 className="text-2xl font-bold text-slate-100">Property Details</h2>
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-slate-400 hover:text-slate-100"
             >
               <X className="w-6 h-6" />
             </Button>
@@ -272,7 +272,7 @@ export function PropertyDrawer({
           {/* Content */}
           <div className="flex-1 overflow-y-auto">
             {/* Video Section */}
-            <div className="relative aspect-video bg-gray-100">
+            <div className="relative aspect-video bg-slate-900">
               {isYouTubeUrl(property.videoUrl) ? (
                 <iframe
                   title="property-video-detail"
@@ -301,53 +301,53 @@ export function PropertyDrawer({
               {/* Price and Title */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <h1 className="text-3xl font-bold text-gray-900">
+                  <h1 className="text-3xl font-bold text-slate-100">
                     {formatPricePKR(property.price)}
                   </h1>
                   <Badge variant="secondary" className="bg-green-100 text-green-800">
                     {property.status}
                   </Badge>
                 </div>
-                <h2 className="text-xl font-semibold text-gray-700">
+                <h2 className="text-xl font-semibold text-slate-200">
                   {property.title}
                 </h2>
               </div>
 
               {/* Location */}
               <div className="flex items-start gap-3">
-                <MapPin className="w-5 h-5 text-gray-500 mt-0.5" />
+                <MapPin className="w-5 h-5 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="font-medium text-gray-900">
+                  <p className="font-medium text-slate-100">
                     {property.city}, {property.state}
                   </p>
                   {property.address && (
-                    <p className="text-gray-600 text-sm">{property.address}</p>
+                    <p className="text-slate-300 text-sm">{property.address}</p>
                   )}
                 </div>
               </div>
 
               {/* Property Stats */}
-              <div className="grid grid-cols-3 gap-4 py-4 border-y border-gray-200">
+              <div className="grid grid-cols-3 gap-4 py-4 border-y border-white/10">
                 <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                  <div className="flex items-center justify-center gap-1 text-slate-300 mb-1">
                     <Bed className="w-4 h-4" />
                     <span className="text-sm">Bedrooms</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{property.bedrooms}</p>
+                  <p className="text-2xl font-bold text-slate-100">{property.bedrooms}</p>
                 </div>
                 <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                  <div className="flex items-center justify-center gap-1 text-slate-300 mb-1">
                     <Bath className="w-4 h-4" />
                     <span className="text-sm">Bathrooms</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">{property.bathrooms}</p>
+                  <p className="text-2xl font-bold text-slate-100">{property.bathrooms}</p>
                 </div>
                 <div className="text-center">
-                  <div className="flex items-center justify-center gap-1 text-gray-600 mb-1">
+                  <div className="flex items-center justify-center gap-1 text-slate-300 mb-1">
                     <Square className="w-4 h-4" />
                     <span className="text-sm">Sq Ft</span>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-2xl font-bold text-slate-100">
                     {property.squareFeet.toLocaleString()}
                   </p>
                 </div>
@@ -356,8 +356,8 @@ export function PropertyDrawer({
               {/* Description */}
               {property.description && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
-                  <p className="text-gray-700 leading-relaxed">
+                  <h3 className="text-lg font-semibold text-slate-100 mb-3">Description</h3>
+                  <p className="text-slate-200 leading-relaxed">
                     {property.description}
                   </p>
                 </div>
@@ -365,23 +365,26 @@ export function PropertyDrawer({
 
               {/* Contact / Schedule */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Agent</h3>
+                <h3 className="text-lg font-semibold text-slate-100 mb-3">Contact Agent</h3>
                 <div className="grid grid-cols-1 gap-3">
                   <Input
                     value={leadName}
                     onChange={(e) => setLeadName(e.target.value)}
                     placeholder="Your name"
+                    className="bg-slate-900 border-white/10 text-slate-100 placeholder:text-slate-400"
                   />
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Input
                       value={leadEmail}
                       onChange={(e) => setLeadEmail(e.target.value)}
                       placeholder="Email"
+                      className="bg-slate-900 border-white/10 text-slate-100 placeholder:text-slate-400"
                     />
                     <Input
                       value={leadPhone}
                       onChange={(e) => setLeadPhone(e.target.value)}
                       placeholder="Phone"
+                      className="bg-slate-900 border-white/10 text-slate-100 placeholder:text-slate-400"
                     />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -390,20 +393,22 @@ export function PropertyDrawer({
                       value={preferredDate}
                       onChange={(e) => setPreferredDate(e.target.value)}
                       placeholder="Preferred date"
+                      className="bg-slate-900 border-white/10 text-slate-100"
                     />
                     <Input
                       type="time"
                       value={preferredTime}
                       onChange={(e) => setPreferredTime(e.target.value)}
                       placeholder="Preferred time"
+                      className="bg-slate-900 border-white/10 text-slate-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-700">Preferred contact</label>
+                    <label className="block text-sm font-medium mb-1 text-slate-300">Preferred contact</label>
                     <select
                       value={contactMethod}
                       onChange={(e) => setContactMethod(e.target.value)}
-                      className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      className="w-full h-9 rounded-md border border-white/10 bg-slate-900 px-3 text-sm text-slate-100"
                     >
                       <option value="email">Email</option>
                       <option value="phone">Phone</option>
@@ -415,6 +420,7 @@ export function PropertyDrawer({
                     onChange={(e) => setLeadMessage(e.target.value)}
                     placeholder="Preferred time / questions"
                     rows={3}
+                    className="bg-slate-900 border-white/10 text-slate-100 placeholder:text-slate-400"
                   />
                   <Button onClick={handleSubmitLead} disabled={isCreatingLead}>
                     {isCreatingLead ? "Sending..." : "Schedule a Visit"}
@@ -424,38 +430,38 @@ export function PropertyDrawer({
 
               {/* Property Details */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">Property Details</h3>
+                <h3 className="text-lg font-semibold text-slate-100 mb-3">Property Details</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-3">
-                    <DollarSign className="w-5 h-5 text-gray-500" />
+                    <DollarSign className="w-5 h-5 text-slate-400" />
                     <div>
-                      <p className="text-sm text-gray-600">Price per sq ft</p>
-                      <p className="font-medium text-gray-900">
+                      <p className="text-sm text-slate-300">Price per sq ft</p>
+                      <p className="font-medium text-slate-100">
                         ${(parseFloat(property.price) / property.squareFeet).toFixed(2)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Eye className="w-5 h-5 text-gray-500" />
+                    <Eye className="w-5 h-5 text-slate-400" />
                     <div>
-                      <p className="text-sm text-gray-600">Views</p>
-                      <p className="font-medium text-gray-900">{property.views}</p>
+                      <p className="text-sm text-slate-300">Views</p>
+                      <p className="font-medium text-slate-100">{property.views}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5 text-gray-500" />
+                    <Calendar className="w-5 h-5 text-slate-400" />
                     <div>
-                      <p className="text-sm text-gray-600">Listed</p>
-                      <p className="font-medium text-gray-900">
+                      <p className="text-sm text-slate-300">Listed</p>
+                      <p className="font-medium text-slate-100">
                         {formatDate(property.createdAt)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Home className="w-5 h-5 text-gray-500" />
+                    <Home className="w-5 h-5 text-slate-400" />
                     <div>
-                      <p className="text-sm text-gray-600">Type</p>
-                      <p className="font-medium text-gray-900">Residential</p>
+                      <p className="text-sm text-slate-300">Type</p>
+                      <p className="font-medium text-slate-100">Residential</p>
                     </div>
                   </div>
                 </div>
@@ -464,15 +470,15 @@ export function PropertyDrawer({
               {/* Similar Listings */}
               {similarProperties.length > 0 && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Similar Listings</h3>
+                  <h3 className="text-lg font-semibold text-slate-100 mb-3">Similar Listings</h3>
                   <div className="space-y-2">
                     {similarProperties.map((item) => (
                       <div key={item.id} className="flex items-center justify-between text-sm">
                         <div>
-                          <p className="font-medium text-gray-900">{item.title}</p>
-                          <p className="text-gray-600">{item.city}, {item.state}</p>
+                          <p className="font-medium text-slate-100">{item.title}</p>
+                          <p className="text-slate-300">{item.city}, {item.state}</p>
                         </div>
-                        <div className="text-gray-900 font-semibold">{formatPricePKR(item.price)}</div>
+                        <div className="text-slate-100 font-semibold">{formatPricePKR(item.price)}</div>
                       </div>
                     ))}
                   </div>
@@ -482,7 +488,7 @@ export function PropertyDrawer({
               {/* Thumbnail */}
               {property.thumbnailUrl && (
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Thumbnail</h3>
+                  <h3 className="text-lg font-semibold text-slate-100 mb-3">Thumbnail</h3>
                   <img
                     src={property.thumbnailUrl}
                     alt="Property thumbnail"
@@ -494,7 +500,7 @@ export function PropertyDrawer({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-6 border-t border-gray-200 bg-gray-50">
+          <div className="p-6 border-t border-white/10 bg-slate-900/70">
             <div className="flex gap-3 overflow-x-auto">
               {onSave && (
                 <Button

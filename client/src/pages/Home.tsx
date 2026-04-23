@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { LoadingScreen } from "@/components/LoadingScreen";
-import { FilterIcon, MapPinHouse } from "lucide-react";
+import { Check, FilterIcon, MapPinHouse, Save, X } from "lucide-react";
 import { PropertyFeed } from "@/components/PropertyFeed";
 import {
   useGetPropertiesQuery,
@@ -35,11 +35,13 @@ export default function Home() {
   const isAdmin = user?.role === "admin";
   const canInteract = !!user?.id;
   const [, navigate] = useLocation();
-  const FILTER_STORAGE_KEY = "psr_filters_v1";
+  const FILTER_STORAGE_KEY = "psr_filters_v2";
   const SORT_STORAGE_KEY = "psr_feed_sort_v1";
   const PRESET_STORAGE_KEY = "psr_filter_presets_v1";
   const LOW_DATA_STORAGE_KEY = "psr_low_data_v1";
   const DISMISSED_AREAS_STORAGE_KEY = "psr_dismissed_areas_v1";
+  const PRICE_MIN_DEFAULT = 0;
+  const PRICE_MAX_DEFAULT = 20000000;
   const FEED_SORT_OPTIONS = ["recommended", "newest", "oldest", "price-high", "price-low"] as const;
   // Applied filters
   const [searchTerm, setSearchTerm] = React.useState("");
@@ -56,7 +58,7 @@ export default function Home() {
   const [draftStateFilter, setDraftStateFilter] = React.useState("");
   const [draftMinPrice, setDraftMinPrice] = React.useState("");
   const [draftMaxPrice, setDraftMaxPrice] = React.useState("");
-  const [draftPriceRange, setDraftPriceRange] = React.useState<[number, number]>([0, 1000000]);
+  const [draftPriceRange, setDraftPriceRange] = React.useState<[number, number]>([PRICE_MIN_DEFAULT, PRICE_MAX_DEFAULT]);
   const [draftMinBedrooms, setDraftMinBedrooms] = React.useState("");
   const [draftMinBathrooms, setDraftMinBathrooms] = React.useState("");
   const [feedSort, setFeedSort] = React.useState<string>("recommended");
@@ -91,28 +93,42 @@ export default function Home() {
   }, [feedSort]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(FILTER_STORAGE_KEY);
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored) as {
-        searchTerm?: string;
-        cityFilter?: string;
-        stateFilter?: string;
-        minPrice?: string;
-        maxPrice?: string;
-        minBedrooms?: string;
-        minBathrooms?: string;
-      };
-      setSearchTerm(parsed.searchTerm ?? "");
-      setCityFilter(parsed.cityFilter ?? "");
-      setStateFilter(parsed.stateFilter ?? "");
-      setMinPrice(parsed.minPrice ?? "");
-      setMaxPrice(parsed.maxPrice ?? "");
-      setMinBedrooms(parsed.minBedrooms ?? "");
-      setMinBathrooms(parsed.minBathrooms ?? "");
-    } catch {
-      // ignore invalid stored filters
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasUrlFilters = [
+      "search",
+      "city",
+      "state",
+      "minPrice",
+      "maxPrice",
+      "minBedrooms",
+      "minBathrooms",
+      "sort",
+    ].some((key) => urlParams.has(key));
+
+    if (hasUrlFilters) {
+      setSearchTerm(urlParams.get("search") ?? "");
+      setCityFilter(urlParams.get("city") ?? "");
+      setStateFilter(urlParams.get("state") ?? "");
+      setMinPrice(urlParams.get("minPrice") ?? "");
+      setMaxPrice(urlParams.get("maxPrice") ?? "");
+      setMinBedrooms(urlParams.get("minBedrooms") ?? "");
+      setMinBathrooms(urlParams.get("minBathrooms") ?? "");
+      const sortFromUrl = urlParams.get("sort") ?? "";
+      if ((FEED_SORT_OPTIONS as readonly string[]).includes(sortFromUrl)) {
+        setFeedSort(sortFromUrl);
+        setDraftFeedSort(sortFromUrl);
+      }
+      return;
     }
+    // If URL has no filters, start from clean defaults.
+    // This prevents stale persisted values (e.g. old maxPrice) from auto-applying.
+    setSearchTerm("");
+    setCityFilter("");
+    setStateFilter("");
+    setMinPrice("");
+    setMaxPrice("");
+    setMinBedrooms("");
+    setMinBathrooms("");
   }, []);
 
   useEffect(() => {
@@ -181,6 +197,27 @@ export default function Home() {
   }, [searchTerm, cityFilter, stateFilter, minPrice, maxPrice, minBedrooms, minBathrooms]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const setOrDelete = (key: string, value: string) => {
+      if (value && value.trim() !== "") params.set(key, value);
+      else params.delete(key);
+    };
+
+    setOrDelete("search", searchTerm);
+    setOrDelete("city", cityFilter);
+    setOrDelete("state", stateFilter);
+    setOrDelete("minPrice", minPrice);
+    setOrDelete("maxPrice", maxPrice);
+    setOrDelete("minBedrooms", minBedrooms);
+    setOrDelete("minBathrooms", minBathrooms);
+    if (feedSort && feedSort !== "recommended") params.set("sort", feedSort);
+    else params.delete("sort");
+
+    const next = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    window.history.replaceState({}, "", next);
+  }, [searchTerm, cityFilter, stateFilter, minPrice, maxPrice, minBedrooms, minBathrooms, feedSort]);
+
+  useEffect(() => {
     localStorage.setItem(LOW_DATA_STORAGE_KEY, String(lowDataMode));
   }, [lowDataMode]);
 
@@ -189,13 +226,7 @@ export default function Home() {
     const set = new Set(dismissedAreasApi.map((area) => `${area.city}|${area.state}`));
     setDismissedLocalAreas((prev) => {
       if (prev.size === set.size) {
-        let same = true;
-        for (const value of prev) {
-          if (!set.has(value)) {
-            same = false;
-            break;
-          }
-        }
+        const same = Array.from(prev).every((value) => set.has(value));
         if (same) return prev;
       }
       return set;
@@ -222,6 +253,33 @@ export default function Home() {
     setMaxPrice(filters.maxPrice ?? "");
     setMinBedrooms(filters.minBedrooms ?? "");
     setMinBathrooms(filters.minBathrooms ?? "");
+  };
+
+  const syncDraftFilters = (filters: Partial<Record<string, string>>) => {
+    const nextSearch = filters.searchTerm ?? "";
+    const nextCity = filters.cityFilter ?? "";
+    const nextState = filters.stateFilter ?? "";
+    const nextMinPrice = filters.minPrice ?? "";
+    const nextMaxPrice = filters.maxPrice ?? "";
+    const nextMinBedrooms = filters.minBedrooms ?? "";
+    const nextMinBathrooms = filters.minBathrooms ?? "";
+
+    setDraftSearchTerm(nextSearch);
+    setDraftCityFilter(nextCity);
+    setDraftStateFilter(nextState);
+    setDraftMinPrice(nextMinPrice);
+    setDraftMaxPrice(nextMaxPrice);
+    setDraftPriceRange([
+      Number(nextMinPrice) || PRICE_MIN_DEFAULT,
+      Number(nextMaxPrice) || PRICE_MAX_DEFAULT,
+    ]);
+    setDraftMinBedrooms(nextMinBedrooms);
+    setDraftMinBathrooms(nextMinBathrooms);
+  };
+
+  const applyFiltersAndSyncDraft = (filters: Partial<Record<string, string>>) => {
+    applyFilters(filters);
+    syncDraftFilters(filters);
   };
 
   const savePreset = async () => {
@@ -285,13 +343,7 @@ export default function Home() {
     setOptimisticSavedIds((prev) => {
       const next = new Set(savedPropertyIds);
       if (prev.size === next.size) {
-        let same = true;
-        for (const value of prev) {
-          if (!next.has(value)) {
-            same = false;
-            break;
-          }
-        }
+        const same = Array.from(prev).every((value) => next.has(value));
         if (same) return prev;
       }
       return next;
@@ -390,7 +442,7 @@ export default function Home() {
     <>
       {/* Filter button */}
       {canInteract && !isDrawerOpen && (
-        <div className="absolute top-16 right-3 z-20 flex lg:flex-row flex-col gap-2">
+        <div className="absolute top-16 right-3 left-3 z-20 flex flex-wrap justify-end gap-2">
           <Button
             onClick={() => {
               // Load current applied filters into the draft when opening
@@ -401,20 +453,22 @@ export default function Home() {
               setDraftMaxPrice(maxPrice);
               setDraftPriceRange([
                 Number(minPrice) || 0,
-                Number(maxPrice) || 1000000,
+                Number(maxPrice) || PRICE_MAX_DEFAULT,
               ]);
               setDraftMinBedrooms(minBedrooms);
               setDraftMinBathrooms(minBathrooms);
               setDraftFeedSort(feedSort);
               setIsFilterOpen(true);
             }}
-            className="bg-white/20 backdrop-blur-xl text-white border border-white/20 rounded-full lg:px-4 lg:py-2 p-2.5"
+            className="bg-white/20 backdrop-blur-xl text-white border border-white/20 rounded-full lg:px-4 lg:py-2 p-2.5 min-w-10"
           >
             <FilterIcon className="!w-5 !h-5" />
             <span className="hidden lg:block">
               Filters
             </span>
           </Button>
+          {/* Temporarily disabled until public map feed is ready. */}
+          {/*
           <Button
             onClick={() => navigate("/map")}
             className="bg-white/20 backdrop-blur-xl text-white border border-white/20 rounded-full lg:px-4 lg:py-2 p-2.5"
@@ -424,10 +478,11 @@ export default function Home() {
               Map
             </span>
           </Button>
+          */}
           {feedCurrentPlotId && (
             <Button
               onClick={() => navigate(`/plot-finder/v2?plotId=${encodeURIComponent(feedCurrentPlotId)}`)}
-              className="bg-white/20 backdrop-blur-xl text-white border border-white/20 rounded-full lg:px-4 lg:py-2 p-2.5"
+              className="bg-white/20 backdrop-blur-xl text-white border border-white/20 rounded-full lg:px-4 lg:py-2 p-2.5 min-w-10"
             >
               <MapPinHouse className="!w-5 !h-5" />
               <span className="hidden lg:block">
@@ -456,7 +511,7 @@ export default function Home() {
                 <button
                   key={chip.label}
                   className="px-3 py-1 rounded-full bg-muted text-foreground text-xs border border-border hover:bg-muted/80"
-                  onClick={() => applyFilters(chip.filters)}
+                  onClick={() => applyFiltersAndSyncDraft({ ...chip.filters })}
                 >
                   {chip.label}
                 </button>
@@ -465,14 +520,14 @@ export default function Home() {
                 <button
                   key={preset.name}
                   className="px-3 py-1 rounded-full bg-muted text-foreground text-xs border border-border hover:bg-muted/80"
-                  onClick={() => applyFilters(preset.filters)}
+                  onClick={() => applyFiltersAndSyncDraft(preset.filters)}
                 >
                   {preset.name}
                 </button>
               ))}
               <button
                 className="px-3 py-1 rounded-full bg-muted text-foreground text-xs border border-border hover:bg-muted/80"
-                onClick={() => applyFilters({})}
+                onClick={() => applyFiltersAndSyncDraft({})}
               >
                 Reset
               </button>
@@ -507,8 +562,8 @@ export default function Home() {
                 <Slider
                   value={draftPriceRange}
                   onValueChange={(val) => setDraftPriceRange([val[0], val[1]])}
-                  min={0}
-                  max={2000000}
+                  min={PRICE_MIN_DEFAULT}
+                  max={PRICE_MAX_DEFAULT}
                   step={10000}
                 />
               </div>
@@ -553,34 +608,41 @@ export default function Home() {
                 Low-data mode
               </label>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" className="rounded-full" onClick={() => {
+            <div className="flex flex-wrap justify-end gap-2 pt-2">
+              <Button variant="outline" className="rounded-full w-full sm:w-auto" onClick={() => {
                 setDraftSearchTerm("");
                 setDraftCityFilter("");
                 setDraftStateFilter("");
                 setDraftMinPrice("");
                 setDraftMaxPrice("");
-                setDraftPriceRange([0, 1000000]);
+                setDraftPriceRange([PRICE_MIN_DEFAULT, PRICE_MAX_DEFAULT]);
                 setDraftMinBedrooms("");
                 setDraftMinBathrooms("");
-              }}>Clear</Button>
-              <Button variant="outline" className="rounded-full" onClick={savePreset}>
+              }}>
+                <X className="w-4 h-4 sm:hidden" />
+                Clear
+              </Button>
+              <Button variant="outline" className="rounded-full w-full sm:w-auto" onClick={savePreset}>
+                <Save className="w-4 h-4 sm:hidden" />
                 Save Preset
               </Button>
-              <Button className="rounded-full" onClick={() => {
+              <Button className="rounded-full w-full sm:w-auto" onClick={() => {
                 // Apply drafts to actual filters
                 applyFilters({
                   searchTerm: draftSearchTerm,
                   cityFilter: draftCityFilter,
                   stateFilter: draftStateFilter,
-                  minPrice: String(draftPriceRange[0]),
-                  maxPrice: String(draftPriceRange[1]),
+                  minPrice: draftPriceRange[0] > PRICE_MIN_DEFAULT ? String(draftPriceRange[0]) : "",
+                  maxPrice: draftPriceRange[1] < PRICE_MAX_DEFAULT ? String(draftPriceRange[1]) : "",
                   minBedrooms: draftMinBedrooms,
                   minBathrooms: draftMinBathrooms,
                 });
                 setFeedSort(draftFeedSort);
                 setIsFilterOpen(false);
-              }}>Apply</Button>
+              }}>
+                <Check className="w-4 h-4 sm:hidden" />
+                Apply
+              </Button>
             </div>
           </div>
           <datalist id="city-options">

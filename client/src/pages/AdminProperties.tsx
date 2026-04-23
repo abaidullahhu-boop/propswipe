@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Plus, LayoutGrid, List, Search, Eye, TrendingUp } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, LayoutGrid, List, Search, Eye, TrendingUp, SlidersHorizontal, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PropertyTable } from "@/components/PropertyTable";
@@ -123,6 +123,22 @@ export default function AdminProperties() {
   const [deleteProperty] = useDeletePropertyMutation();
   const [, navigate] = useLocation();
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const applyMobileDefaultView = () => {
+      if (window.matchMedia("(max-width: 639px)").matches) {
+        setViewMode("grid");
+      }
+    };
+
+    applyMobileDefaultView();
+    window.addEventListener("resize", applyMobileDefaultView);
+    return () => {
+      window.removeEventListener("resize", applyMobileDefaultView);
+    };
+  }, []);
+
   const handleDeleteProperty = async (id: string) => {
     if (confirm("Are you sure you want to delete this property?")) {
       try {
@@ -143,15 +159,17 @@ export default function AdminProperties() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-4xl font-black mb-2">Properties</h1>
+          <h1 className="text-3xl sm:text-4xl font-black mb-2">Properties</h1>
           <p className="text-muted-foreground">Manage your property listings</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="w-full flex flex-wrap items-center justify-start sm:justify-end gap-2 sm:gap-4">
 
           <Button
             variant="outline"
+            size="icon"
+            className="sm:w-auto sm:px-4"
             onClick={() => {
               // Load current filters into drafts when opening
               setDraftSearchTerm(searchTerm);
@@ -167,7 +185,8 @@ export default function AdminProperties() {
               setIsFilterOpen(true);
             }}
           >
-            Filter
+            <SlidersHorizontal className="w-4 h-4" />
+            <span className="sr-only sm:not-sr-only sm:ml-2">Filter</span>
           </Button>
           <div className="flex items-center gap-2">
             <Button
@@ -189,10 +208,12 @@ export default function AdminProperties() {
           </div>
           <Button
             data-testid="button-create-property"
+            size="icon"
+            className="sm:w-auto sm:px-4"
             onClick={() => navigate("/admin/upload")}
           >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Property
+            <Plus className="w-4 h-4" />
+            <span className="sr-only sm:not-sr-only sm:ml-2">Add Property</span>
           </Button>
         </div>
       </div>
@@ -329,15 +350,18 @@ export default function AdminProperties() {
                         {(property.views ?? 0).toLocaleString()} views
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 pt-2">
-                      <Button size="sm" variant="outline" onClick={() => handlePreviewProperty(property.id)}>
-                        Preview
+                    <div className="flex items-center gap-2 pt-2 flex-wrap">
+                      <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => handlePreviewProperty(property.id)}>
+                        <Eye className="w-4 h-4 sm:mr-2" />
+                        <span className="sr-only sm:not-sr-only">Preview</span>
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleEditProperty(property)}>
-                        Edit
+                      <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => handleEditProperty(property)}>
+                        <Pencil className="w-4 h-4 sm:mr-2" />
+                        <span className="sr-only sm:not-sr-only">Edit</span>
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDeleteProperty(property.id)}>
-                        Delete
+                      <Button size="sm" variant="destructive" className="flex-1 sm:flex-none" onClick={() => handleDeleteProperty(property.id)}>
+                        <Trash2 className="w-4 h-4 sm:mr-2" />
+                        <span className="sr-only sm:not-sr-only">Delete</span>
                       </Button>
                     </div>
                   </div>

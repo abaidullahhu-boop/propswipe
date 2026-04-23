@@ -449,12 +449,12 @@ export function PropertyCard({
             <button
               data-testid="button-mute-toggle"
               onClick={() => setIsMuted(!isMuted)}
-              className="w-12 h-12 border border-white/20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center"
+              className="w-12 h-12 border border-white/20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300"
             >
               {isMuted ? (
-                <Volume2 className="w-6 h-6 text-white" />
-              ) : (
                 <VolumeX className="w-6 h-6 text-white" />
+              ) : (
+                <Volume2 className="w-6 h-6 text-white" />
               )}
             </button>
           )}
@@ -463,7 +463,7 @@ export function PropertyCard({
           <button
             data-testid="button-share"
             onClick={handleShare}
-            className="w-12 h-12 border border-white/20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center"
+            className="w-12 h-12 border border-white/20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300"
           >
             <Share2 className="w-6 h-6 text-white" />
           </button>
@@ -472,7 +472,7 @@ export function PropertyCard({
           {onShowDetails && (
             <button
               onClick={onShowDetails}
-              className="w-12 h-12 border border-white/20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center"
+              className="w-12 h-12 border border-white/20 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-all duration-300"
             >
               <Info className="w-6 h-6 text-white" />
             </button>
@@ -519,9 +519,9 @@ export function PropertyCard({
               onClick={() => setIsMuted(!isMuted)}
             >
               {isMuted ? (
-                <MuteIcon className="text-white" />
-              ) : (
                 <UnmuteIcon className="text-white" />
+              ) : (
+                <MuteIcon className="text-white" />
               )}
             </button>
           )}

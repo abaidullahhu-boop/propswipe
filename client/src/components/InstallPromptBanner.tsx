@@ -5,18 +5,23 @@ import { Button } from "@/components/ui/button";
 export default function InstallPromptBanner() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [visible, setVisible] = useState(false);
+  const DISMISSED_KEY = "pwa_install_prompt_dismissed";
 
   useEffect(() => {
     const isStandalone = window.matchMedia?.("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
     const installedFlag = localStorage.getItem("pwa_installed") === "true";
+    const dismissedFlag = localStorage.getItem(DISMISSED_KEY) === "true";
 
-    if (isStandalone || installedFlag) {
+    if (isStandalone || installedFlag || dismissedFlag) {
       setVisible(false);
       return;
     }
 
     const onBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
+      if (localStorage.getItem(DISMISSED_KEY) === "true") {
+        return;
+      }
       setDeferredPrompt(e);
       setVisible(true);
     };
@@ -25,6 +30,7 @@ export default function InstallPromptBanner() {
 
     const onAppInstalled = () => {
       localStorage.setItem("pwa_installed", "true");
+      localStorage.removeItem(DISMISSED_KEY);
       setVisible(false);
       setDeferredPrompt(null);
     };
@@ -45,7 +51,8 @@ export default function InstallPromptBanner() {
     const fallbackTimer = window.setTimeout(() => {
       const nowStandalone = window.matchMedia?.("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
       const nowInstalledFlag = localStorage.getItem("pwa_installed") === "true";
-      if (!deferredPrompt && !nowStandalone && !nowInstalledFlag) {
+      const nowDismissedFlag = localStorage.getItem(DISMISSED_KEY) === "true";
+      if (!deferredPrompt && !nowStandalone && !nowInstalledFlag && !nowDismissedFlag) {
         setVisible(true);
       }
     }, 1200);
@@ -86,7 +93,14 @@ export default function InstallPromptBanner() {
           <Button onClick={handleInstall} className="bg-white text-black hover:bg-white/90 h-8 px-3">
             Install
           </Button>
-          <Button variant="ghost" onClick={() => setVisible(false)} className="text-white hover:bg-white/10 h-8 px-3">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              localStorage.setItem(DISMISSED_KEY, "true");
+              setVisible(false);
+            }}
+            className="text-white hover:bg-white/10 h-8 px-3"
+          >
             Later
           </Button>
         </div>

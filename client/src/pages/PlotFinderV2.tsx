@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Minus, Pencil, Plus, RotateCcw, Search } from "lucide-react";
 import {
   useGetPlotFinderBlocksQuery,
   useGetPlotFinderBlockDetailsQuery,
@@ -47,6 +49,8 @@ type MapPlot = {
 
 const MIN_STAGE_SCALE = 0.01;
 const PLOT_FINDER_V2_LAYOUT_STORAGE_KEY = "plot-finder-v2-layout-overrides";
+const PRESELECTED_PLOT_FOCUS_SCALE = 1.75;
+const SEARCH_PLOT_FOCUS_SCALE = 0.2;
 
 function normalizeImagePath(imagePath: string) {
   const value = String(imagePath ?? "").trim();
@@ -209,6 +213,7 @@ export default function PlotFinderV2Page() {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [plotSearchInput, setPlotSearchInput] = useState("");
   const [submittedPlotSearch, setSubmittedPlotSearch] = useState("");
+  const [debouncedPlotSearchInput, setDebouncedPlotSearchInput] = useState("");
   const [activePlot, setActivePlot] = useState<PlotFinderSearchResult["plot"] | null>(null);
   const [pendingJumpPlot, setPendingJumpPlot] = useState<PlotFinderSearchResult["plot"] | null>(null);
   const [didJumpToPreselectedPlot, setDidJumpToPreselectedPlot] = useState(false);
@@ -236,6 +241,9 @@ export default function PlotFinderV2Page() {
   const [newBlockImageFile, setNewBlockImageFile] = useState<File | null>(null);
   const [newBlockWidthPx, setNewBlockWidthPx] = useState<number>(0);
   const [newBlockHeightPx, setNewBlockHeightPx] = useState<number>(0);
+  const [isMobileLayout, setIsMobileLayout] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 1024 : false
+  );
 
   const stageRef = useRef<any>(null);
   const selectedBlockNodeRef = useRef<any>(null);
@@ -262,9 +270,17 @@ export default function PlotFinderV2Page() {
     { societyId: selectedSocietyId as string },
     { skip: !selectedSocietyId }
   );
+  const { data: selectedBlockDetails } = useGetPlotFinderBlockDetailsQuery(
+    { blockId: selectedBlockId as string },
+    { skip: !selectedBlockId }
+  );
   const { data: searchResults = [], isFetching: searchLoading } = useSearchPlotFinderPlotsQuery(
     { query: submittedPlotSearch, societyId: selectedSocietyId ?? undefined },
     { skip: !selectedSocietyId || submittedPlotSearch.trim().length === 0 }
+  );
+  const { data: liveSearchSuggestions = [], isFetching: liveSearchLoading } = useSearchPlotFinderPlotsQuery(
+    { query: debouncedPlotSearchInput, societyId: selectedSocietyId ?? undefined },
+    { skip: !selectedSocietyId || debouncedPlotSearchInput.trim().length === 0 }
   );
 
   useEffect(() => {
@@ -289,9 +305,18 @@ export default function PlotFinderV2Page() {
     if (!preselectedPlotId) setPendingJumpPlot(null);
     setSubmittedPlotSearch("");
     setPlotSearchInput("");
+    setDebouncedPlotSearchInput("");
     setMovingPlot(null);
     setMovingPlotDraftPos(null);
   }, [selectedSocietyId, preselectedPlotId]);
+
+  useEffect(() => {
+    const nextValue = plotSearchInput.trim();
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedPlotSearchInput(nextValue);
+    }, 200);
+    return () => window.clearTimeout(timeoutId);
+  }, [plotSearchInput]);
 
   useEffect(() => {
     if (!preselectedPlotData) return;
@@ -319,6 +344,14 @@ export default function PlotFinderV2Page() {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(PLOT_FINDER_V2_LAYOUT_STORAGE_KEY, JSON.stringify(layoutSavedOverrides));
   }, [layoutSavedOverrides]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setIsMobileLayout(window.innerWidth < 1024);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const effectiveLayoutOverrides = useMemo(
     () => (layoutEditMode ? layoutDraftOverrides : layoutSavedOverrides),
@@ -477,14 +510,14 @@ export default function PlotFinderV2Page() {
 
   useEffect(() => {
     if (!preselectedPlotData || didJumpToPreselectedPlot) return;
-    if (!focusOnPlot(preselectedPlotData.plot, 2.6)) return;
+    if (!focusOnPlot(preselectedPlotData.plot, PRESELECTED_PLOT_FOCUS_SCALE)) return;
     setDidJumpToPreselectedPlot(true);
     setPendingJumpPlot(null);
   }, [didJumpToPreselectedPlot, focusOnPlot, preselectedPlotData]);
 
   useEffect(() => {
     if (!pendingJumpPlot) return;
-    if (focusOnPlot(pendingJumpPlot, 2.5)) setPendingJumpPlot(null);
+    if (focusOnPlot(pendingJumpPlot, SEARCH_PLOT_FOCUS_SCALE)) setPendingJumpPlot(null);
   }, [focusOnPlot, pendingJumpPlot]);
 
   useEffect(() => {
@@ -554,6 +587,38 @@ export default function PlotFinderV2Page() {
     stagePosRef.current = nextPos;
   };
 
+  const zoomAroundViewportCenter = (scaleFactor: number) => {
+    const stage = stageRef.current;
+    if (!stage || viewportSize.width <= 0 || viewportSize.height <= 0) return;
+
+    const oldScale = stageScaleRef.current;
+    const nextScale = Math.max(MIN_STAGE_SCALE, Math.min(8, oldScale * scaleFactor));
+    const center = {
+      x: viewportSize.width / 2,
+      y: viewportSize.height / 2,
+    };
+    const focusPoint = {
+      x: (center.x - stagePosRef.current.x) / oldScale,
+      y: (center.y - stagePosRef.current.y) / oldScale,
+    };
+    const nextPos = {
+      x: center.x - focusPoint.x * nextScale,
+      y: center.y - focusPoint.y * nextScale,
+    };
+
+    stage.to({
+      scaleX: nextScale,
+      scaleY: nextScale,
+      x: nextPos.x,
+      y: nextPos.y,
+      duration: 0.2,
+      onFinish: () => {
+        stageScaleRef.current = nextScale;
+        stagePosRef.current = nextPos;
+      },
+    });
+  };
+
   const handleStageClick = () => {
     if (!isAdminMarkingEnabled) return;
     if (layoutEditMode) return;
@@ -581,6 +646,15 @@ export default function PlotFinderV2Page() {
   };
 
   const handleSubmitPlotSearch = () => setSubmittedPlotSearch(plotSearchInput.trim());
+
+  const handleJumpToSearchResult = (result: PlotFinderSearchResult) => {
+    setSelectedBlockId(result.block.id);
+    setPendingJumpPlot(result.plot);
+    setActivePlot(result.plot);
+    setPlotSearchInput(result.plot.plotNumber);
+    setSubmittedPlotSearch(result.plot.plotNumber);
+    focusOnBlock(result.block.id, 1.12);
+  };
 
   const updateBlockLayoutOverride = (blockId: string, next: { x: number; y: number; scale: number }) => {
     setLayoutDraftOverrides((prev) => ({
@@ -612,6 +686,35 @@ export default function PlotFinderV2Page() {
       toast.error("Failed to load plot video.");
     }
   };
+
+  const availablePlotsInSelectedBlock = useMemo(() => {
+    const selectedPlotId = activePlot?.id ?? preselectedPlotId ?? null;
+    const plots = selectedBlockDetails?.plots ?? [];
+    return plots
+      .filter((plot) => plot.status === "available" && plot.id !== selectedPlotId)
+      .sort((a, b) =>
+        String(a.plotNumber).localeCompare(String(b.plotNumber), undefined, { numeric: true, sensitivity: "base" })
+      )
+      .slice(0, 8);
+  }, [activePlot?.id, preselectedPlotId, selectedBlockDetails?.plots]);
+  const selectedSociety = useMemo(
+    () => societies.find((society) => society.id === selectedSocietyId) ?? null,
+    [selectedSocietyId, societies]
+  );
+  const selectedBlock = useMemo(
+    () => blocks.find((block) => block.id === selectedBlockId) ?? null,
+    [blocks, selectedBlockId]
+  );
+  const stageWidth = Math.max(1, viewportSize.width);
+  const stageHeight = Math.max(1, isMobileLayout ? 260 : viewportSize.height);
+  const mobileInventoryPlots = useMemo(() => {
+    const plots = selectedBlockDetails?.plots ?? [];
+    return [...plots]
+      .sort((a, b) =>
+        String(a.plotNumber).localeCompare(String(b.plotNumber), undefined, { numeric: true, sensitivity: "base" })
+      )
+      .slice(0, 6);
+  }, [selectedBlockDetails?.plots]);
 
   const handleAdminMovePlot = async (plot: PlotFinderPlot): Promise<boolean> => {
     try {
@@ -738,6 +841,14 @@ export default function PlotFinderV2Page() {
     }
   };
 
+  const handleResetView = () => {
+    if (!selectedSocietyId || mapBlocks.length === 0) return;
+    const shouldReset = window.confirm("Reset map view to default fit?");
+    if (!shouldReset) return;
+    toast("View reset to default");
+    fitToCanvas(true);
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-100">
       <div className="border-b border-white/10 bg-slate-950/95 backdrop-blur px-4 py-3 flex flex-wrap items-center gap-2">
@@ -758,65 +869,80 @@ export default function PlotFinderV2Page() {
         <div className="text-sm text-slate-400">{societiesLoading ? "Searching societies..." : `${societies.length} societies`}</div>
 
         <div className="ml-auto flex items-center gap-2 rounded-lg border border-white/10 bg-slate-900/70 p-1">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const stage = stageRef.current;
-              if (!stage) return;
-              const nextScale = Math.min(8, stageScaleRef.current * 1.2);
-              stage.to({
-                scaleX: nextScale,
-                scaleY: nextScale,
-                duration: 0.2,
-                onFinish: () => {
-                  stageScaleRef.current = nextScale;
-                  stagePosRef.current = stage.position();
-                },
-              });
-            }}
-            disabled={!selectedSocietyId || mapBlocks.length === 0}
-          >
-            Zoom In
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              const stage = stageRef.current;
-              if (!stage) return;
-              const nextScale = Math.max(MIN_STAGE_SCALE, stageScaleRef.current / 1.2);
-              stage.to({
-                scaleX: nextScale,
-                scaleY: nextScale,
-                duration: 0.2,
-                onFinish: () => {
-                  stageScaleRef.current = nextScale;
-                  stagePosRef.current = stage.position();
-                },
-              });
-            }}
-            disabled={!selectedSocietyId || mapBlocks.length === 0}
-          >
-            Zoom Out
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => fitToCanvas(true)} disabled={!selectedSocietyId || mapBlocks.length === 0}>
-            Reset
-          </Button>
+          <TooltipProvider delayDuration={120}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => zoomAroundViewportCenter(1.2)}
+                    disabled={!selectedSocietyId || mapBlocks.length === 0}
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="sr-only">Zoom In</span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Zoom In</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={() => zoomAroundViewportCenter(1 / 1.2)}
+                    disabled={!selectedSocietyId || mapBlocks.length === 0}
+                  >
+                    <Minus className="h-4 w-4" />
+                    <span className="sr-only">Zoom Out</span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Zoom Out</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={handleResetView}
+                    disabled={!selectedSocietyId || mapBlocks.length === 0}
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                    <span className="sr-only">Reset View</span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Reset View</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {isAdminMarkingEnabled && (
             <>
               {!layoutEditMode ? (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    setLayoutDraftOverrides(layoutSavedOverrides);
-                    setLayoutEditMode(true);
-                    toast("Layout edit mode enabled");
-                  }}
-                >
-                  Adjust Layout
-                </Button>
+                <TooltipProvider delayDuration={120}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        onClick={() => {
+                          setLayoutDraftOverrides(layoutSavedOverrides);
+                          setLayoutEditMode(true);
+                          toast("Layout edit mode enabled");
+                        }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                        <span className="sr-only">Adjust Layout</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Adjust Layout</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               ) : (
                 <>
                   <Button
@@ -854,6 +980,215 @@ export default function PlotFinderV2Page() {
       </div>
 
       <div className="flex flex-1 overflow-hidden min-w-0">
+        {isMobileLayout ? (
+          <main className="flex-1 min-w-0 bg-[#050d22] overflow-y-auto">
+            <div className="p-3 space-y-3">
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Search Society</div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                  <Input
+                    value={societySearch}
+                    onChange={(e) => setSocietySearch(e.target.value)}
+                    placeholder="Search Society (e.g. Bismillah Housing)"
+                    className="pl-9 bg-slate-950/80 border-white/10 text-slate-100 placeholder:text-slate-500"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Selected Society</div>
+                  <span className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Change</span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {societies.map((society) => (
+                    <Button
+                      key={society.id}
+                      variant={selectedSocietyId === society.id ? "default" : "outline"}
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => setSelectedSocietyId(society.id)}
+                    >
+                      {society.name}
+                    </Button>
+                  ))}
+                </div>
+                {!societiesLoading && societies.length === 0 && <div className="text-xs text-slate-400">No societies found.</div>}
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {blocks.map((block) => (
+                    <Button
+                      key={block.id}
+                      variant={selectedBlockId === block.id ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-24 shrink-0"
+                      onClick={() => {
+                        setSelectedBlockId(block.id);
+                        setActivePlot(null);
+                        focusOnBlock(block.id, 1.08);
+                      }}
+                    >
+                      {block.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-2">
+                {!selectedSocietyId || mapBlocks.length === 0 ? (
+                  <div className="h-[260px] flex items-center justify-center text-sm text-slate-400">
+                    {blocksLoading ? "Loading blocks..." : "No blocks available for this society."}
+                  </div>
+                ) : (
+                  <div className="h-[260px] w-full min-h-0 relative overflow-hidden rounded-lg" ref={containerRef}>
+                    <Stage
+                      ref={stageRef}
+                      width={stageWidth}
+                      height={stageHeight}
+                      draggable={!movingPlot}
+                      onWheel={handleWheel}
+                      onClick={handleStageClick}
+                      onDragEnd={(e) => {
+                        stagePosRef.current = { x: e.target.x(), y: e.target.y() };
+                      }}
+                    >
+                      <Layer>
+                        {mapBlocks.map((block) => (
+                          <BlockImageInteractive
+                            key={block.id}
+                            block={block}
+                            isLayoutEditMode={layoutEditMode && isAdminMarkingEnabled}
+                            isSelected={selectedBlockId === block.id}
+                            onSelect={() => setSelectedBlockId(block.id)}
+                            onDragEnd={(x, y) => {
+                              const scale = block.width / block.originalWidth;
+                              updateBlockLayoutOverride(block.id, { x, y, scale });
+                            }}
+                            onTransformEnd={(x, y, width) => {
+                              const scale = width / block.originalWidth;
+                              updateBlockLayoutOverride(block.id, { x, y, scale });
+                            }}
+                            attachNodeRef={(node) => {
+                              if (selectedBlockId === block.id) selectedBlockNodeRef.current = node;
+                            }}
+                          />
+                        ))}
+                      </Layer>
+                      <Layer>
+                        {mapBlocks.map((block) => (
+                          <Text
+                            key={`label-${block.id}`}
+                            x={block.x + 12}
+                            y={block.y + 12}
+                            text={block.name}
+                            fill="#f8fafc"
+                            fontSize={24}
+                            fontStyle="bold"
+                            stroke="rgba(15,23,42,0.9)"
+                            strokeWidth={1.2}
+                          />
+                        ))}
+                      </Layer>
+                      <Layer>
+                        {mapBlocks.map((block) => (
+                          <BlockPlotsLayer
+                            key={`plots-${block.id}`}
+                            block={block}
+                            activePlotId={activePlot?.id ?? null}
+                            movingPlotId={movingPlot?.id ?? null}
+                            movingDraft={movingPlotDraftPos}
+                            isAdmin={isAdminMarkingEnabled}
+                            selectMode={selectMode}
+                            onSelectPlot={handleSelectPlot}
+                            onPublicPlotClick={handlePublicPlotClick}
+                            onAdminMovePlotStart={handleAdminMovePlot}
+                            onAdminMovePlotDraftChange={handleAdminMovePlotDraftChange}
+                            onAdminMovePlotCommit={handleAdminMovePlotCommit}
+                          />
+                        ))}
+                      </Layer>
+                    </Stage>
+                    <div className="absolute right-2 top-2 flex flex-col gap-2">
+                      <Button size="icon" variant="outline" className="h-9 w-9 bg-slate-950/90" onClick={() => zoomAroundViewportCenter(1.2)}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" className="h-9 w-9 bg-slate-950/90" onClick={() => zoomAroundViewportCenter(1 / 1.2)}>
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Button size="icon" variant="outline" className="h-9 w-9 bg-slate-950/90" onClick={handleResetView}>
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-2">
+                <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Quick Plot Lookup</div>
+                <div className="flex gap-2">
+                  <Input
+                    value={plotSearchInput}
+                    onChange={(e) => setPlotSearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSubmitPlotSearch();
+                    }}
+                    placeholder="Plot #"
+                    className="bg-slate-950/80 border-white/10 text-slate-100 placeholder:text-slate-500"
+                  />
+                  <Button onClick={handleSubmitPlotSearch} disabled={!selectedSocietyId}>
+                    Find Plot
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-slate-100">Inventory in {selectedBlock?.name ?? "Block"}</h3>
+                  <span className="rounded-md border border-white/10 bg-slate-900/70 px-2 py-1 text-[11px] tracking-wide text-slate-300">
+                    {mobileInventoryPlots.filter((plot) => plot.status === "available").length} AVAILABLE
+                  </span>
+                </div>
+                {mobileInventoryPlots.length === 0 ? (
+                  <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4 text-sm text-slate-400">
+                    No plots found for selected block.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {mobileInventoryPlots.map((plot) => (
+                      <Button
+                        key={plot.id}
+                        variant="outline"
+                        className="h-auto justify-start rounded-xl border-white/10 bg-slate-900/50 p-3 text-left"
+                        disabled={!selectedSociety || !selectedBlock}
+                        onClick={() =>
+                          selectedSociety &&
+                          selectedBlock &&
+                          handleJumpToSearchResult({
+                            society: selectedSociety,
+                            block: selectedBlock,
+                            plot,
+                          })
+                        }
+                      >
+                        <div className="w-full space-y-1">
+                          <div className="text-lg font-semibold text-slate-100">Plot {plot.plotNumber}</div>
+                          <div className="text-xs text-slate-300">{plot.size ? `Area: ${plot.size}` : "Area: N/A"}</div>
+                          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-300">
+                            {plot.status}
+                          </div>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </main>
+        ) : (
+        <>
         <aside className="w-80 max-w-[22rem] shrink-0 border-r border-white/10 bg-slate-950/90 overflow-y-auto">
           <div className="p-4 space-y-4">
             <div className="space-y-2 rounded-xl border border-white/10 bg-slate-900/40 p-4">
@@ -873,7 +1208,7 @@ export default function PlotFinderV2Page() {
                     className="w-full justify-start"
                     onClick={() => setSelectedSocietyId(society.id)}
                   >
-                    {society.name} ({society.city})
+                    {society.name}
                   </Button>
                 ))}
                 {!societiesLoading && societies.length === 0 && <div className="text-sm text-muted-foreground">No societies found.</div>}
@@ -921,14 +1256,67 @@ export default function PlotFinderV2Page() {
                     if (e.key === "Enter") handleSubmitPlotSearch();
                   }}
                   placeholder="Enter plot #"
+                  className="bg-slate-950/80 border-white/10 text-slate-100 placeholder:text-slate-500"
                 />
                 <Button onClick={handleSubmitPlotSearch} disabled={!selectedSocietyId}>
                   Find Plot
                 </Button>
               </div>
+              {plotSearchInput.trim().length > 0 && (
+                <div className="rounded-md border border-white/10 bg-slate-950/70 p-2 space-y-1">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">Autocomplete</div>
+                  {liveSearchLoading ? (
+                    <div className="text-xs text-slate-400">Searching suggestions...</div>
+                  ) : liveSearchSuggestions.length > 0 ? (
+                    liveSearchSuggestions.slice(0, 6).map((result) => (
+                      <Button
+                        key={result.plot.id}
+                        variant="ghost"
+                        className="h-8 w-full justify-start px-2 text-xs text-slate-200 hover:bg-white/10"
+                        onClick={() => handleJumpToSearchResult(result)}
+                      >
+                        Plot {result.plot.plotNumber} • {result.block.name}
+                      </Button>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-500">No suggestions</div>
+                  )}
+                </div>
+              )}
               {submittedPlotSearch && (
                 <div className="text-xs text-slate-400">
                   {searchLoading ? "Searching..." : searchResults.length > 0 ? `Found ${searchResults.length} matches` : "No matching plot found"}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-white/10 bg-slate-900/40 p-4">
+              <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Available Plots In Block</div>
+              {!selectedBlockId ? (
+                <div className="text-sm text-slate-400">Select a block to view available plots.</div>
+              ) : availablePlotsInSelectedBlock.length === 0 ? (
+                <div className="text-sm text-slate-400">No available plots found in this block.</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {availablePlotsInSelectedBlock.map((plot) => (
+                    <Button
+                      key={plot.id}
+                      size="sm"
+                      variant="outline"
+                      className="justify-start"
+                      disabled={!selectedSociety || !selectedBlock}
+                      onClick={() =>
+                        selectedSociety && selectedBlock &&
+                        handleJumpToSearchResult({
+                          society: selectedSociety,
+                          block: selectedBlock,
+                          plot,
+                        })
+                      }
+                    >
+                      Plot {plot.plotNumber}
+                    </Button>
+                  ))}
                 </div>
               )}
             </div>
@@ -958,8 +1346,8 @@ export default function PlotFinderV2Page() {
             <div className="h-full w-full min-h-0" ref={containerRef}>
               <Stage
                 ref={stageRef}
-                width={viewportSize.width}
-                height={viewportSize.height}
+                width={stageWidth}
+                height={stageHeight}
                 draggable={!movingPlot}
                 onWheel={handleWheel}
                 onClick={handleStageClick}
@@ -1051,6 +1439,8 @@ export default function PlotFinderV2Page() {
             </div>
           )}
         </main>
+        </>
+        )}
       </div>
 
       <Dialog open={createSocietyOpen} onOpenChange={setCreateSocietyOpen}>

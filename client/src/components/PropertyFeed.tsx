@@ -7,8 +7,8 @@ import type { Property } from "@shared/schema";
 import { throttle } from "@/lib/utils";
 import { cacheMedia } from "@/lib/offline";
 import { useNetwork } from "@/hooks/use-network";
-import { Arrow } from "@radix-ui/react-tooltip";
 import { formatPricePKR } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PropertyFeedProps {
   properties: Property[];
@@ -52,6 +52,8 @@ export function PropertyFeed({
   const [showOnboarding, setShowOnboarding] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const autoAdvanceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const [, setLocation] = useLocation();
   // Mobile View Dot
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -240,6 +242,19 @@ export function PropertyFeed({
     }
   }, [currentIndex, properties, lowDataMode, isOnline]);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
   const throttledDislike = useMemo(() => throttle((id: string) => onDislikeProperty(id), 250), [onDislikeProperty]);
   const throttledSave = useMemo(() => throttle((id: string) => onSaveProperty(id), 250), [onSaveProperty]);
 
@@ -278,21 +293,9 @@ export function PropertyFeed({
     onDrawerOpenChange?.(false);
   };
 
-  if (properties.length === 0) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center bg-black">
-        <div className="text-center">
-          <h2 className="text-3xl font-black text-white mb-4">No Properties Available</h2>
-          <p className="text-white/70">Check back soon for new listings!</p>
-        </div>
-      </div>
-    );
-  }
-
-  const currentProperty = properties[currentIndex];
-
   // Let other pages/components (e.g. Home header Plot Finder button)
   // open Plot Finder already focused on the currently visible property.
+  const currentProperty = properties[currentIndex];
   useEffect(() => {
     const plotId = currentProperty?.plotId;
     if (plotId) {
@@ -303,6 +306,17 @@ export function PropertyFeed({
       window.dispatchEvent(new CustomEvent("feed-current-plot-changed", { detail: { plotId: null } }));
     }
   }, [currentProperty?.id, currentProperty?.plotId]);
+
+  if (properties.length === 0) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black">
+        <div className="text-center">
+          <h2 className="text-3xl font-black text-white mb-4">No Properties Available</h2>
+          <p className="text-white/70">Check back soon for new listings!</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -363,9 +377,10 @@ export function PropertyFeed({
             <button
               onClick={() => setLocation("/saved")}
               className="bg-black/50 backdrop-blur-md rounded-full px-4 py-2 hidden lg:flex items-center gap-2 text-white"
+              aria-label="Open your liked properties"
             >
               <Heart className="w-5 h-5 fill-red-500 text-red-500" />
-              <span className="text-sm font-medium">{savedPropertyIds.size}</span>
+              <span className="text-sm font-medium">Your Likes ({savedPropertyIds.size})</span>
             </button>
           )}
 
@@ -470,10 +485,27 @@ export function PropertyFeed({
           {/* User Section */}
           <div className="lg:flex hidden items-center gap-2">
             {canInteract && userName && (
-              <div className="bg-black/50 backdrop-blur-md rounded-full px-3 py-2 flex items-center gap-2 text-white">
-                <User className="w-4 h-4" />
-                <span className="text-sm font-medium w-max">{userName}</span>
-              </div>
+              isAdmin ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setLocation("/admin")}
+                      className="bg-black/50 backdrop-blur-md rounded-full px-3 py-2 flex items-center gap-2 text-white hover:bg-black/60 transition-colors"
+                      aria-label="Go to dashboard"
+                    >
+                      <User className="w-4 h-4" />
+                      <span className="text-sm font-medium w-max">{userName}</span>
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Go to dashboard</TooltipContent>
+                </Tooltip>
+              ) : (
+                <div className="bg-black/50 backdrop-blur-md rounded-full px-3 py-2 flex items-center gap-2 text-white">
+                  <User className="w-4 h-4" />
+                  <span className="text-sm font-medium w-max">{userName}</span>
+                </div>
+              )
             )}
 
             {canInteract && onLogout ? (
@@ -516,9 +548,18 @@ export function PropertyFeed({
         </div>
       </div>
       {/* Mobile 3-dot Menu */}
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Close mobile menu"
+          className="absolute inset-0 z-20 lg:hidden bg-transparent"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
       <div className="absolute top-4 right-3 z-30 lg:hidden">
-        <div className="relative">
+        <div className="relative" ref={mobileMenuRef}>
           <button
+            ref={mobileMenuButtonRef}
             onClick={() => setMobileMenuOpen((prev) => !prev)}
             className="bg-white/20 backdrop-blur-xl text-white border border-white/20 p-2.5 rounded-full "
           >
@@ -528,7 +569,7 @@ export function PropertyFeed({
           {mobileMenuOpen && (
             <div className="absolute right-0 mt-2 w-56 bg-black/90 backdrop-blur-md rounded-xl p-3 space-y-3 text-white shadow-lg">
 
-              {/* Saved */}
+              {/* Your Likes */}
               {canInteract && (
                 <button
                   onClick={() => {
@@ -538,7 +579,7 @@ export function PropertyFeed({
                   className="flex items-center gap-2 w-full text-left"
                 >
                   <Heart className="w-4 h-4 text-red-500" />
-                  Saved ({savedPropertyIds.size})
+                  Your Likes ({savedPropertyIds.size})
                 </button>
               )}
 

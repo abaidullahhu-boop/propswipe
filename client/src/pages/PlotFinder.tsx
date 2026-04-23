@@ -894,7 +894,7 @@ export default function PlotFinderPage() {
                       setSelectedSocietyId(society.id);
                     }}
                   >
-                    {society.name} ({society.city})
+                    {society.name}
                   </Button>
                 ))}
                 {!societiesLoading && societies.length === 0 && (

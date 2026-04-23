@@ -211,16 +211,44 @@ export default function AdminUpload() {
     try {
       if (!propertyData) return;
       const v = videoUrl.trim();
+      const existingVideoUrl = (propertyToEdit?.videoUrl ?? "").trim();
+      const existingThumbnailUrl = (propertyToEdit?.thumbnailUrl ?? "").trim();
+      const legacyVideoUnchanged = isEditMode && v !== "" && !v.startsWith("https://") && v === existingVideoUrl;
+      const nextThumbnail = (videoMeta?.thumbnailUrl ?? "").trim() || (propertyData.thumbnailUrl ?? "").trim();
+      const legacyThumbnailUnchanged =
+        isEditMode &&
+        nextThumbnail !== "" &&
+        !nextThumbnail.startsWith("https://") &&
+        nextThumbnail === existingThumbnailUrl;
+
       if (v && !v.startsWith("https://")) {
-        toast.error("Video must be uploaded first so we save an https:// URL from S3, not a local path.");
-        return;
+        if (!legacyVideoUnchanged) {
+          toast.error("Video must be uploaded first so we save an https:// URL from S3, not a local path.");
+          return;
+        }
       }
+      if (nextThumbnail && !nextThumbnail.startsWith("https://")) {
+        if (!legacyThumbnailUnchanged) {
+          toast.error("Thumbnail must be an https:// URL from S3.");
+          return;
+        }
+      }
+      const mediaPatch =
+        isEditMode && editPropertyId
+          ? {
+              ...(legacyVideoUnchanged ? {} : { videoUrl: v || undefined }),
+              ...(legacyThumbnailUnchanged ? {} : { thumbnailUrl: nextThumbnail || undefined }),
+            }
+          : {
+              videoUrl: v || undefined,
+              thumbnailUrl: nextThumbnail || undefined,
+            };
+
       const { videoUrl: _ignoreVideo, thumbnailUrl: _ignoreThumb, ...rest } = propertyData;
       const payload = {
         ...rest,
         ...videoMeta,
-        videoUrl: v || undefined,
-        thumbnailUrl: (videoMeta?.thumbnailUrl ?? "").trim() || (propertyData.thumbnailUrl ?? "").trim() || undefined,
+        ...mediaPatch,
         plotId: selectedPlotId || undefined,
       };
 

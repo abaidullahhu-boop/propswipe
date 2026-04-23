@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Property, SavedProperty } from "@shared/schema";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import {
   useGetSavedPropertiesQuery,
   useGetPropertiesQuery,
@@ -14,6 +15,7 @@ import { getApiErrorMessage, formatPricePKR } from "@/lib/utils";
 
 export default function SavedProperties() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "price-high" | "price-low">("newest");
 
@@ -91,6 +93,10 @@ export default function SavedProperties() {
     } catch {
       toast.error("Failed to copy link");
     }
+  };
+
+  const handleOpenProperty = (propertyId: string) => {
+    navigate(`/property/${propertyId}`);
   };
 
   if (savedPropertiesLoading) {
@@ -171,12 +177,12 @@ export default function SavedProperties() {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
-            className="px-4 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:border-white/40 focus:outline-none"
+            className="px-4 py-2 bg-white/10 border border-white/20 rounded-md text-white focus:border-white/40 focus:outline-none [&>option]:bg-black [&>option]:text-white"
           >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="price-high">Price: High to Low</option>
-            <option value="price-low">Price: Low to High</option>
+            <option value="newest" className="bg-black text-white">Newest First</option>
+            <option value="oldest" className="bg-black text-white">Oldest First</option>
+            <option value="price-high" className="bg-black text-white">Price: High to Low</option>
+            <option value="price-low" className="bg-black text-white">Price: Low to High</option>
           </select>
         </div>
       </div>
@@ -217,7 +223,16 @@ export default function SavedProperties() {
             {filteredAndSortedProperties.map((property) => (
               <div
                 key={property.id}
-                className="bg-white/5 rounded-xl overflow-hidden hover:bg-white/10 transition-all duration-300 group"
+                className="bg-white/5 rounded-xl overflow-hidden hover:bg-white/10 transition-all duration-300 group cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onClick={() => handleOpenProperty(property.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handleOpenProperty(property.id);
+                  }
+                }}
               >
                 {/* Video Thumbnail */}
                 <div className="relative aspect-video bg-gray-800">
@@ -232,7 +247,10 @@ export default function SavedProperties() {
                   
                   {/* Unsave Button */}
                   <button
-                    onClick={() => handleUnsaveProperty(property.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUnsaveProperty(property.id);
+                    }}
                     disabled={isUnsaveLoading}
                     className="absolute top-3 right-3 w-10 h-10 bg-red-500/90 hover:bg-red-500 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 disabled:opacity-50"
                   >

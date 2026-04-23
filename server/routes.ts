@@ -710,11 +710,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      const hasExplicitFilters =
+        Boolean(search) ||
+        Boolean(city) ||
+        Boolean(state) ||
+        minPrice !== undefined ||
+        maxPrice !== undefined ||
+        minBedrooms !== undefined ||
+        minBathrooms !== undefined ||
+        Boolean(bounds);
+
       if (authUser && authUser.role !== "admin") {
-        const dislikedIds = await storage.getDislikedPropertyIds(authUser.userId);
-        if (dislikedIds.length) {
-          const dislikedSet = new Set(dislikedIds);
-          properties = properties.filter((p) => !dislikedSet.has(p.id));
+        // Keep recommendation feed personalized, but don't hide explicit search/filter results.
+        if (!hasExplicitFilters) {
+          const dislikedIds = await storage.getDislikedPropertyIds(authUser.userId);
+          if (dislikedIds.length) {
+            const dislikedSet = new Set(dislikedIds);
+            properties = properties.filter((p) => !dislikedSet.has(p.id));
+          }
         }
         const dismissed = await storage.getDismissedAreasByUser(authUser.userId);
         if (dismissed.length) {
