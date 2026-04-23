@@ -20,11 +20,12 @@ jobs:
           username: root
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            set -e
             cd /var/www/propswipe
             git pull origin production
-            npm install --production
+            npm install --omit=dev
             npm run build
-            pm2 restart propswipe
+            pm2 restart propswipe --update-env
 
       - name: Send failure email
         if: failure()
