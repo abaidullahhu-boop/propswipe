@@ -461,6 +461,7 @@ export function PropertyFeed({
                   <div className="origin-top">
                     <img
                       src={properties[currentIndex + 1]?.thumbnailUrl ?? "https://via.placeholder.com/400x300?text=No+Image"}
+                      alt={properties[currentIndex + 1]?.title ? `${properties[currentIndex + 1]?.title} thumbnail` : "Next property thumbnail"}
                       className="w-full h-full object-cover rounded-t-2xl"
                     />
                   </div>
