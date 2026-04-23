@@ -3,6 +3,7 @@ import "dotenv/config";
 
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
+import { fileURLToPath } from "url";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -76,8 +77,18 @@ export default async function handler(req: Request, res: Response) {
   return app(req, res);
 }
 
-// For local development, start the server
-if (process.env.NODE_ENV !== "production") {
+// Start an HTTP server when this file is executed directly (PM2/node),
+// but not when imported as a serverless handler (e.g. Vercel).
+const isDirectExecution = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+  } catch {
+    return false;
+  }
+})();
+
+if (isDirectExecution && !process.env.VERCEL) {
   (async () => {
     const server = await registerRoutes(app);
 
