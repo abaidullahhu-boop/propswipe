@@ -4,10 +4,16 @@ on:
   push:
     branches:
       - production
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
@@ -19,13 +25,27 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: root
           key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 30m
           script: |
-            set -e
+            set -euxo pipefail
             cd /var/www/propswipe
-            git pull origin production
-            npm ci
+            git fetch origin production
+            git checkout production
+            git reset --hard origin/production
+            if [ -f package-lock.json ]; then
+              npm ci --include=dev --no-audit --no-fund
+            else
+              npm install --no-audit --no-fund
+            fi
             npm run build
-            pm2 restart propswipe --update-env
+            if pm2 describe propswipe >/dev/null 2>&1; then
+              pm2 restart propswipe --update-env
+            else
+              pm2 start npm --name propswipe -- start
+            fi
+            sleep 5
+            pm2 describe propswipe
+            pm2 logs propswipe --lines 30 --nostream
 
       - name: Send failure email
         if: ${{ failure() && env.MAIL_USERNAME != '' && env.MAIL_PASSWORD != '' }}
