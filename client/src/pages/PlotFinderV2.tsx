@@ -849,6 +849,22 @@ export default function PlotFinderV2Page() {
     fitToCanvas(true);
   };
 
+  const handlePendingMarkerDrag = useCallback(
+    (blockId: string, stageX: number, stageY: number) => {
+      const targetBlock = mapBlocksById.get(blockId);
+      if (!targetBlock) return;
+      setPendingMark((prev) => {
+        if (!prev || prev.blockId !== blockId) return prev;
+        return {
+          ...prev,
+          x: Number((stageX - targetBlock.x).toFixed(2)),
+          y: Number((stageY - targetBlock.y).toFixed(2)),
+        };
+      });
+    },
+    [mapBlocksById]
+  );
+
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 text-slate-100">
       <div className="border-b border-white/10 bg-slate-950/95 backdrop-blur px-4 py-3 flex flex-wrap items-center gap-2">
@@ -1110,6 +1126,29 @@ export default function PlotFinderV2Page() {
                             onAdminMovePlotCommit={handleAdminMovePlotCommit}
                           />
                         ))}
+                        {isAdminMarkingEnabled && pendingMark && mapBlocksById.has(pendingMark.blockId) && (() => {
+                          const block = mapBlocksById.get(pendingMark.blockId)!;
+                          return (
+                            <Circle
+                              x={block.x + pendingMark.x}
+                              y={block.y + pendingMark.y}
+                              radius={7}
+                              fill="#22c55e"
+                              stroke="#fff"
+                              strokeWidth={1.8}
+                              draggable
+                              onClick={(e) => {
+                                e.cancelBubble = true;
+                              }}
+                              onDragMove={(e) => {
+                                handlePendingMarkerDrag(pendingMark.blockId, e.target.x(), e.target.y());
+                              }}
+                              onDragEnd={(e) => {
+                                handlePendingMarkerDrag(pendingMark.blockId, e.target.x(), e.target.y());
+                              }}
+                            />
+                          );
+                        })()}
                       </Layer>
                     </Stage>
                     <div className="absolute right-2 top-2 flex flex-col gap-2">
@@ -1413,6 +1452,29 @@ export default function PlotFinderV2Page() {
                       onAdminMovePlotCommit={handleAdminMovePlotCommit}
                     />
                   ))}
+                  {isAdminMarkingEnabled && pendingMark && mapBlocksById.has(pendingMark.blockId) && (() => {
+                    const block = mapBlocksById.get(pendingMark.blockId)!;
+                    return (
+                      <Circle
+                        x={block.x + pendingMark.x}
+                        y={block.y + pendingMark.y}
+                        radius={7}
+                        fill="#22c55e"
+                        stroke="#fff"
+                        strokeWidth={1.8}
+                        draggable
+                        onClick={(e) => {
+                          e.cancelBubble = true;
+                        }}
+                        onDragMove={(e) => {
+                          handlePendingMarkerDrag(pendingMark.blockId, e.target.x(), e.target.y());
+                        }}
+                        onDragEnd={(e) => {
+                          handlePendingMarkerDrag(pendingMark.blockId, e.target.x(), e.target.y());
+                        }}
+                      />
+                    );
+                  })()}
                 </Layer>
                 {isAdminMarkingEnabled && layoutEditMode && (
                   <Layer>
