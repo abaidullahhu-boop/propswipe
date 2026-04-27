@@ -1061,6 +1061,7 @@ export default function PlotFinderV2Page() {
                             key={block.id}
                             block={block}
                             isLayoutEditMode={layoutEditMode && isAdminMarkingEnabled}
+                            allowStageClickThrough={isAdminMarkingEnabled && !layoutEditMode}
                             isSelected={selectedBlockId === block.id}
                             onSelect={() => setSelectedBlockId(block.id)}
                             onDragEnd={(x, y) => {
@@ -1361,6 +1362,7 @@ export default function PlotFinderV2Page() {
                       key={block.id}
                       block={block}
                       isLayoutEditMode={layoutEditMode && isAdminMarkingEnabled}
+                      allowStageClickThrough={isAdminMarkingEnabled && !layoutEditMode}
                       isSelected={selectedBlockId === block.id}
                       onSelect={() => setSelectedBlockId(block.id)}
                       onDragEnd={(x, y) => {
@@ -1552,6 +1554,7 @@ export default function PlotFinderV2Page() {
 function BlockImageInteractive({
   block,
   isLayoutEditMode,
+  allowStageClickThrough,
   isSelected,
   onSelect,
   onDragEnd,
@@ -1560,6 +1563,7 @@ function BlockImageInteractive({
 }: {
   block: MapBlock;
   isLayoutEditMode: boolean;
+  allowStageClickThrough: boolean;
   isSelected: boolean;
   onSelect: () => void;
   onDragEnd: (x: number, y: number) => void;
@@ -1583,11 +1587,11 @@ function BlockImageInteractive({
       stroke={isSelected ? "#ef4444" : undefined}
       strokeWidth={isSelected ? 2 : 0}
       onClick={(e) => {
-        e.cancelBubble = true;
+        e.cancelBubble = !allowStageClickThrough;
         onSelect();
       }}
       onTap={(e) => {
-        e.cancelBubble = true;
+        e.cancelBubble = !allowStageClickThrough;
         onSelect();
       }}
       onDragEnd={(e) => {
