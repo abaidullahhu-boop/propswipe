@@ -273,6 +273,8 @@ export const updateBlockPlotPositionSchema = z.object({
     return val;
   }, z.string().min(1).optional()),
   size: optionalTrimmedString,
+  status: optionalTrimmedString,
+  metaJson: optionalTrimmedString,
 });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

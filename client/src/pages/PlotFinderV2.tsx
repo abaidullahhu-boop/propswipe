@@ -3,9 +3,11 @@ import { useLocation } from "wouter";
 import { Circle, Layer, Stage, Image as KonvaImage, Text, Transformer } from "react-konva";
 import useImage from "use-image";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Minus, Pencil, Plus, RotateCcw, Search } from "lucide-react";
 import {
@@ -47,10 +49,40 @@ type MapPlot = {
   plotNumber: string;
 };
 
+type PlotMeta = {
+  plotType?: string;
+  isCornerPlot?: boolean;
+  isParkFacing?: boolean;
+};
+
+function parsePlotMeta(metaJson?: string | null): PlotMeta {
+  if (!metaJson) return {};
+  try {
+    const parsed = JSON.parse(metaJson);
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as PlotMeta;
+  } catch {
+    return {};
+  }
+}
+
 const MIN_STAGE_SCALE = 0.01;
 const PLOT_FINDER_V2_LAYOUT_STORAGE_KEY = "plot-finder-v2-layout-overrides";
 const PRESELECTED_PLOT_FOCUS_SCALE = 1.75;
 const SEARCH_PLOT_FOCUS_SCALE = 0.2;
+const PLOT_TYPE_OPTIONS = [
+  { value: "residential", label: "Residential" },
+  { value: "commercial", label: "Commercial" },
+  { value: "corner", label: "Corner" },
+  { value: "park-facing", label: "Park Facing" },
+] as const;
+const PLOT_STATUS_OPTIONS = [
+  { value: "available", label: "Available" },
+  { value: "sold", label: "Sold" },
+  { value: "booked", label: "Booked" },
+  { value: "under-negotiation", label: "Under Negotiation" },
+  { value: "hold", label: "Hold" },
+] as const;
 
 function normalizeImagePath(imagePath: string) {
   const value = String(imagePath ?? "").trim();
@@ -222,8 +254,19 @@ export default function PlotFinderV2Page() {
   const [pendingMark, setPendingMark] = useState<{ blockId: string; x: number; y: number } | null>(null);
   const [markPlotNumber, setMarkPlotNumber] = useState("");
   const [markPlotSize, setMarkPlotSize] = useState("");
+  const [markPlotType, setMarkPlotType] = useState("residential");
+  const [markPlotStatus, setMarkPlotStatus] = useState("available");
+  const [markIsCornerPlot, setMarkIsCornerPlot] = useState(false);
+  const [markIsParkFacing, setMarkIsParkFacing] = useState(false);
   const [movingPlot, setMovingPlot] = useState<PlotFinderPlot | null>(null);
   const [movingPlotDraftPos, setMovingPlotDraftPos] = useState<{ x: number; y: number } | null>(null);
+  const [isPlotDetailOpen, setIsPlotDetailOpen] = useState(false);
+  const [detailPlotNumber, setDetailPlotNumber] = useState("");
+  const [detailPlotSize, setDetailPlotSize] = useState("");
+  const [detailPlotType, setDetailPlotType] = useState("residential");
+  const [detailPlotStatus, setDetailPlotStatus] = useState("available");
+  const [detailIsCornerPlot, setDetailIsCornerPlot] = useState(false);
+  const [detailIsParkFacing, setDetailIsParkFacing] = useState(false);
   const [layoutEditMode, setLayoutEditMode] = useState(false);
   const [layoutSavedOverrides, setLayoutSavedOverrides] = useState<
     Record<string, { x: number; y: number; scale: number }>
@@ -642,6 +685,10 @@ export default function PlotFinderV2Page() {
     });
     setMarkPlotNumber("");
     setMarkPlotSize("");
+    setMarkPlotType("residential");
+    setMarkPlotStatus("available");
+    setMarkIsCornerPlot(false);
+    setMarkIsParkFacing(false);
     setMarkDialogOpen(true);
   };
 
@@ -716,6 +763,39 @@ export default function PlotFinderV2Page() {
       .slice(0, 6);
   }, [selectedBlockDetails?.plots]);
 
+  const activePlotDetails = useMemo(() => {
+    if (!activePlot?.id) return null;
+    return selectedBlockDetails?.plots.find((plot) => plot.id === activePlot.id) ?? activePlot;
+  }, [activePlot, selectedBlockDetails?.plots]);
+
+  useEffect(() => {
+    if (!activePlotDetails) {
+      setDetailPlotNumber("");
+      setDetailPlotSize("");
+      setDetailPlotType("residential");
+      setDetailPlotStatus("available");
+      setDetailIsCornerPlot(false);
+      setDetailIsParkFacing(false);
+      return;
+    }
+    const meta = parsePlotMeta(activePlotDetails.metaJson);
+    setDetailPlotNumber(activePlotDetails.plotNumber ?? "");
+    setDetailPlotSize(activePlotDetails.size ?? "");
+    const normalizedType =
+      typeof meta.plotType === "string" && PLOT_TYPE_OPTIONS.some((option) => option.value === meta.plotType)
+        ? meta.plotType
+        : "residential";
+    const normalizedStatus = PLOT_STATUS_OPTIONS.some((option) => option.value === activePlotDetails.status)
+      ? activePlotDetails.status
+      : "available";
+    const isCornerFromLegacyType = meta.plotType === "corner";
+    const isParkFromLegacyType = meta.plotType === "park-facing";
+    setDetailPlotType(normalizedType);
+    setDetailPlotStatus(normalizedStatus);
+    setDetailIsCornerPlot(Boolean(meta.isCornerPlot || isCornerFromLegacyType));
+    setDetailIsParkFacing(Boolean(meta.isParkFacing || isParkFromLegacyType));
+  }, [activePlotDetails]);
+
   const handleAdminMovePlot = async (plot: PlotFinderPlot): Promise<boolean> => {
     try {
       const property = await triggerPlotPropertyByPlotId({ plotId: plot.id }).unwrap();
@@ -730,6 +810,7 @@ export default function PlotFinderV2Page() {
     setMovingPlot(plot);
     setMovingPlotDraftPos({ x: plot.x, y: plot.y });
     setActivePlot(plot);
+    setIsPlotDetailOpen(true);
     toast("Move mode enabled for selected plot.");
     return true;
   };
@@ -759,12 +840,45 @@ export default function PlotFinderV2Page() {
         x: pendingMark.x,
         y: pendingMark.y,
         size: markPlotSize.trim() || undefined,
+        status: markPlotStatus.trim() || "available",
+        metaJson: JSON.stringify({
+          plotType: markPlotType.trim() || "residential",
+          isCornerPlot: markIsCornerPlot,
+          isParkFacing: markIsParkFacing,
+        }),
       }).unwrap();
       toast.success(`Plot ${created.plotNumber} created`);
       setMarkDialogOpen(false);
       setPendingMark(null);
     } catch (error: any) {
       toast.error(error?.data?.error || "Failed to create plot");
+    }
+  };
+
+  const handleSavePlotDetails = async () => {
+    if (!activePlotDetails || !detailPlotNumber.trim()) return;
+    const isMovingActivePlot = movingPlot?.id === activePlotDetails.id;
+    const nextX = isMovingActivePlot && movingPlotDraftPos ? movingPlotDraftPos.x : activePlotDetails.x;
+    const nextY = isMovingActivePlot && movingPlotDraftPos ? movingPlotDraftPos.y : activePlotDetails.y;
+
+    try {
+      const updated = await updatePlot({
+        plotId: activePlotDetails.id,
+        plotNumber: detailPlotNumber.trim(),
+        size: detailPlotSize.trim() || undefined,
+        status: detailPlotStatus.trim() || "available",
+        x: nextX,
+        y: nextY,
+        metaJson: JSON.stringify({
+          plotType: detailPlotType.trim() || "residential",
+          isCornerPlot: detailIsCornerPlot,
+          isParkFacing: detailIsParkFacing,
+        }),
+      }).unwrap();
+      setActivePlot(updated);
+      toast.success("Plot details updated");
+    } catch (error: any) {
+      toast.error(error?.data?.error || "Failed to update plot details");
     }
   };
 
@@ -1184,6 +1298,94 @@ export default function PlotFinderV2Page() {
                 </div>
               </div>
 
+              {isAdminMarkingEnabled && isPlotDetailOpen && activePlotDetails && (
+                <div className="rounded-xl border border-white/10 bg-slate-900/40 p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Plot Details</div>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setIsPlotDetailOpen(false)}>
+                      Close
+                    </Button>
+                  </div>
+                  <div className="text-sm text-slate-200">Plot {activePlotDetails.plotNumber}</div>
+                  {movingPlot?.id === activePlotDetails.id && (
+                    <div className="rounded-md border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-xs text-amber-100">
+                      Move active
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label htmlFor="mobile-detail-plot-number-v2">Plot Number</Label>
+                    <Input id="mobile-detail-plot-number-v2" value={detailPlotNumber} onChange={(e) => setDetailPlotNumber(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="mobile-detail-plot-size-v2">Plot Size</Label>
+                    <Input id="mobile-detail-plot-size-v2" value={detailPlotSize} onChange={(e) => setDetailPlotSize(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Plot Type</Label>
+                    <Select value={detailPlotType} onValueChange={setDetailPlotType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select plot type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLOT_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="mobile-detail-corner-v2"
+                      checked={detailIsCornerPlot}
+                      onCheckedChange={(checked) => setDetailIsCornerPlot(checked === true)}
+                    />
+                    <Label htmlFor="mobile-detail-corner-v2">Corner plot</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="mobile-detail-park-v2"
+                      checked={detailIsParkFacing}
+                      onCheckedChange={(checked) => setDetailIsParkFacing(checked === true)}
+                    />
+                    <Label htmlFor="mobile-detail-park-v2">Park facing</Label>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Plot Status</Label>
+                    <Select value={detailPlotStatus} onValueChange={setDetailPlotStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select plot status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLOT_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button className="flex-1" onClick={handleSavePlotDetails} disabled={!detailPlotNumber.trim() || isUpdatingPlot}>
+                      {isUpdatingPlot ? "Saving..." : "Save Details"}
+                    </Button>
+                    {movingPlot?.id === activePlotDetails.id && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setMovingPlot(null);
+                          setMovingPlotDraftPos(null);
+                        }}
+                        disabled={isUpdatingPlot}
+                      >
+                        Cancel Move
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-semibold text-slate-100">Inventory in {selectedBlock?.name ?? "Block"}</h3>
@@ -1500,6 +1702,101 @@ export default function PlotFinderV2Page() {
                   </Layer>
                 )}
               </Stage>
+              {isAdminMarkingEnabled && isPlotDetailOpen && activePlotDetails && (
+                <aside className="absolute right-3 top-3 z-10 w-[22rem] max-w-[calc(100%-1.5rem)] rounded-xl border border-white/10 bg-slate-950/95 backdrop-blur p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-[11px] uppercase tracking-[0.2em] text-slate-400">Plot Detail Drawer</div>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setIsPlotDetailOpen(false)}>
+                      Close
+                    </Button>
+                  </div>
+                  <div className="text-sm text-slate-200">Plot {activePlotDetails.plotNumber}</div>
+                  {movingPlot?.id === activePlotDetails.id && (
+                    <div className="rounded-md border border-amber-300/40 bg-amber-300/10 px-2 py-1 text-xs text-amber-100">
+                      Move active - drag marker on map
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <Label htmlFor="detail-plot-number-v2">Plot Number</Label>
+                    <Input id="detail-plot-number-v2" value={detailPlotNumber} onChange={(e) => setDetailPlotNumber(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="detail-plot-size-v2">Plot Size</Label>
+                    <Input id="detail-plot-size-v2" value={detailPlotSize} onChange={(e) => setDetailPlotSize(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Plot Type</Label>
+                    <Select value={detailPlotType} onValueChange={setDetailPlotType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select plot type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLOT_TYPE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="detail-corner-v2"
+                      checked={detailIsCornerPlot}
+                      onCheckedChange={(checked) => setDetailIsCornerPlot(checked === true)}
+                    />
+                    <Label htmlFor="detail-corner-v2">Corner plot</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="detail-park-v2"
+                      checked={detailIsParkFacing}
+                      onCheckedChange={(checked) => setDetailIsParkFacing(checked === true)}
+                    />
+                    <Label htmlFor="detail-park-v2">Park facing</Label>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Plot Status</Label>
+                    <Select value={detailPlotStatus} onValueChange={setDetailPlotStatus}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select plot status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLOT_STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-slate-400">
+                    <div>
+                      X: {Number((movingPlot?.id === activePlotDetails.id && movingPlotDraftPos ? movingPlotDraftPos.x : activePlotDetails.x).toFixed(2))}
+                    </div>
+                    <div>
+                      Y: {Number((movingPlot?.id === activePlotDetails.id && movingPlotDraftPos ? movingPlotDraftPos.y : activePlotDetails.y).toFixed(2))}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button className="flex-1" onClick={handleSavePlotDetails} disabled={!detailPlotNumber.trim() || isUpdatingPlot}>
+                      {isUpdatingPlot ? "Saving..." : "Save Details"}
+                    </Button>
+                    {movingPlot?.id === activePlotDetails.id && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setMovingPlot(null);
+                          setMovingPlotDraftPos(null);
+                        }}
+                        disabled={isUpdatingPlot}
+                      >
+                        Cancel Move
+                      </Button>
+                    )}
+                  </div>
+                </aside>
+              )}
             </div>
           )}
         </main>
@@ -1597,6 +1894,52 @@ export default function PlotFinderV2Page() {
             <div className="space-y-2">
               <Label htmlFor="plot-size-v2">Size (optional)</Label>
               <Input id="plot-size-v2" value={markPlotSize} onChange={(e) => setMarkPlotSize(e.target.value)} placeholder="e.g. 5 Marla" />
+            </div>
+            <div className="space-y-2">
+              <Label>Type (optional)</Label>
+              <Select value={markPlotType} onValueChange={setMarkPlotType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select plot type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLOT_TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="plot-corner-v2"
+                checked={markIsCornerPlot}
+                onCheckedChange={(checked) => setMarkIsCornerPlot(checked === true)}
+              />
+              <Label htmlFor="plot-corner-v2">Corner plot</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="plot-park-v2"
+                checked={markIsParkFacing}
+                onCheckedChange={(checked) => setMarkIsParkFacing(checked === true)}
+              />
+              <Label htmlFor="plot-park-v2">Park facing</Label>
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={markPlotStatus} onValueChange={setMarkPlotStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select plot status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PLOT_STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

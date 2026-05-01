@@ -161,7 +161,10 @@ export const apiSlice = createApi({
       },
       providesTags: ['PlotFinder'],
     }),
-    createPlot: builder.mutation<PlotFinderPlot, { blockId: string; plotNumber: string; x: number; y: number; size?: string; status?: string }>({
+    createPlot: builder.mutation<
+      PlotFinderPlot,
+      { blockId: string; plotNumber: string; x: number; y: number; size?: string; status?: string; metaJson?: string }
+    >({
       query: ({ blockId, ...body }) => ({
         url: `/plot-finder/blocks/${blockId}/plots`,
         method: 'POST',
@@ -171,7 +174,7 @@ export const apiSlice = createApi({
     }),
     updatePlot: builder.mutation<
       PlotFinderPlot,
-      { plotId: string; plotNumber?: string; x: number; y: number; size?: string; status?: string }
+      { plotId: string; plotNumber?: string; x: number; y: number; size?: string; status?: string; metaJson?: string }
     >({
       query: ({ plotId, ...body }) => ({
         url: `/plot-finder/plots/${plotId}`,
